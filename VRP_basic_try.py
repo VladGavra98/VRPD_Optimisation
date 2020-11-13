@@ -23,6 +23,7 @@ import time
 import os
 
 
+M = 10000
 
 class UAV:
     """
@@ -33,8 +34,8 @@ class UAV:
     """
     def __init__(self, maxspeed, capacity, endurance, maxrange):
 
-        self.v = maxspeed # [m/s]
-        self.q = capacity  # [pizzaz]   1 pizza = 1kg
+        self.v = maxspeed  # [m/s]
+        self.q = capacity  # [pizzaz]   1 pizza = 0.5 kg
         self.R = maxrange  # [m]
         self.E = endurance  #[s]
 
@@ -46,24 +47,35 @@ data    = np.genfromtxt("dummy_data.csv",skip_header=1,delimiter=',',dtype=int)
 
 
 # Nodes (except deport) & Links:
-N       = int(max(max(data[:,0]),max(data[:,1])))
-L       = int(len(data[:,0]))
+N       = int(max(max(data[:,0]),max(data[:,1])))     #nodes = locations
+L       = int(len(data[:,0]))                         # links
+
+
+# Pizzeria:
+P       = range(3)
+
+# Arrival times:
+e       = range(len(P))
 
 # Customers:
-C       = range(N)
+C       = range(5)
 
-# Distances:
-D       = data[:,2]
+
 
 # Buy some drones:
-K       = range(2)                      # number of drones
+K       = range(2)               # number of drones
 drone   = UAV(1,1,30*60,1000)    # drone model
 
 
+# custumer order:
+q = [1,1,1,1,1]
 
 # Build the graph as a list of tuples:
 links = gp.tuplelist()
 cost  = {}
+distance = np.zeros((N+1,N+1))
+
+
 
 for i in range(L):
 
@@ -73,7 +85,7 @@ for i in range(L):
 
     links.append((from_node,to_node))
 
-    cost[from_node, to_node] = cost_arc
+    distance[from_node, to_node] = cost_arc
 
 # # Build useful data structures
 # J = [j.loc for j in customers]
@@ -89,21 +101,16 @@ for i in range(L):
 # tDue = {j.name : j.tDue for j in customers}
 
 
-    ### Create model
+### Create model
 m = gp.Model("VRP")
 
 #+++++++++++++++++++++++++++++ Decision variables +++++++++++++++++++++++++++++++++++++++++++++++++
 
 # Edge assignment to drone:
-x = m.addVars(L, L, K, vtype=GRB.BINARY, name="x")
+x   = m.addVars(L, L, K, vtype = GRB.BINARY, name="x")   #link active
+x_k = m.addVars(K, vtype = GRB.BINARY, name = "x_k")     #drone is active
+tau = m.addVars(P, vtype = GRB.INTEGER, name = 'tau')    #real arrival time at pizzeria
 
-# # Technician cannot leave or return to a depot that is not its base
-# for k in technicians:
-#     for d in D:
-#         if k.depot != d:
-#             for i in L:
-#                 y[i,d,k.name].ub = 0
-#                 y[d,i,k.name].ub = 0
 
 # Start time of service
 t = m.addVars(L, ub=600, name="t")
@@ -118,58 +125,58 @@ xb = m.addVars(C, name="xb")
 
 #+++++++++++++++++++++++++++++++++ Constraints  ++++++++++++++++++++++++++++++++++++++++++++++++++
 
-# Each customer needes to be visited:
-m.addConstrs((gp.quicksum(x[i,j,k]  for k in K for j in C)== 1 for i in C), name="visited cutomer")
+# 1 All must leave the luanch site (index 0):
+m.addConstrs((gp.sum(x[0,j,k] for j in C if i!=j) == x_k  for k in K), name="Launch site")
 
-# Each drone that deleivered must leave:
+# 2 All must leave the landing site (index 0):
+m.addConstrs((gp.quicksum(x[i,0,k] for i in C if i!=j) == x_k for k in K), name="Landing site")
+
+# 3 Each pizzeria needes to be visited once:
+m.addConstrs((gp.quicksum(x[i,j,k]  for k in K for j in C)== 1 for i in P), name="visited pizzeria")
+
+# 4 Each pizzeria needes to be visited once:
+m.addConstrs((gp.quicksum(x[i,j,k]  for k in K for i in P)== 1 for j in C), name="visited customer")
+
+# 5.1 and 5.2 Each drone must leave:
 m.addConstrs((gp.quicksum(x[j,i,k] for j in C) == gp.quicksum(x[i,j,k] for j in C) for i in C for k in K), name="leave customer")
+m.addConstrs((gp.quicksum(x[j,i,k] for i in C) == gp.quicksum(x[0,j,k]) for j in P for k in K), name="leave pizzeria")
 
-# Technician capacity constraints (3)
-capLHS = {k : gp.quicksum(dur[j]*x[j,k] for j in C) +\
-    gp.quicksum(dist[i,j]*y[i,j,k] for i in L for j in L) for k in K}
+# 6 Lower bound on arrival time:
+m.addConstrs((e[i] <=  tau[i] for i in P), name="time bound on pizzeria")
 
-m.addConstrs((capLHS[k] <= drone.q), name="Capacity")
+# 7 Time window:
+m.addConstrs((0 + distance[0,j]/drone.v + (1- x[i,j,k]) * M)  <= tau[j] for j in P)   # the first 0 might change later if drones leave at differetn times
 
-# Technician tour constraints (4 and 5)
-m.addConstrs((y.sum('*', loc[j], k) == x[j,k] for k in K for j in C),\
-    name="techTour1")
-m.addConstrs((y.sum(loc[j], '*', k) == x[j,k] for k in K for j in C),\
-    name="techTour2")
+# 8 Capacity constraints
+m.addConstrs(((gp.quicksum(q[j] * x[i,j,k] for i in C for j in C if i!=j) + (gp.quicksum(q[j] * x[i,j,k] for i in P for j in C if i!=j) )<= drone.q for k in K), name="Capacity")
 
-# Same depot constraints (6 and 7)
-m.addConstrs((gp.quicksum(y[j,depot[k],k] for j in J) == u[k] for k in K),\
-    name="sameDepot1")
-m.addConstrs((gp.quicksum(y[depot[k],j,k] for j in J) == u[k] for k in K),\
-    name="sameDepot2")
 
-# Temporal constraints (8) for customer locations
-M = {(i,j) : 600 + dur[i] + dist[loc[i], loc[j]] for i in C for j in C}
-m.addConstrs((t[loc[j]] >= t[loc[i]] + dur[i] + dist[loc[i], loc[j]]\
-    - M[i,j]*(1 - gp.quicksum(y[loc[i],loc[j],k] for k in K))\
-    for i in C for j in C), name="tempoCustomer")
 
-# Temporal constraints (8) for depot locations
-M = {(i,j) : 600 + dist[i, loc[j]] for i in D for j in C}
-m.addConstrs((t[loc[j]] >= t[i] + dist[i, loc[j]]\
-    - M[i,j]*(1 - y.sum(i,loc[j],'*')) for i in D for j in C),\
-    name="tempoDepot")
+# # Temporal constraints (8) for customer locations
+# M = {(i,j) : 600 + dur[i] + dist[loc[i], loc[j]] for i in C for j in C}
+# m.addConstrs((t[loc[j]] >= t[loc[i]] + dur[i] + dist[loc[i], loc[j]]\
+#     - M[i,j]*(1 - gp.quicksum(y[loc[i],loc[j],k] for k in K))\
+#     for i in C for j in C), name="tempoCustomer")
 
-# Time window constraints (9 and 10)
-m.addConstrs((t[loc[j]] + xa[j] >= tStart[j] for j in C), name="timeWinA")
-m.addConstrs((t[loc[j]] - xb[j] <= tEnd[j] for j in C), name="timeWinB")
+# # Temporal constraints (8) for depot locations
+# M = {(i,j) : 600 + dist[i, loc[j]] for i in D for j in C}
+# m.addConstrs((t[loc[j]] >= t[i] + dist[i, loc[j]]\
+#     - M[i,j]*(1 - y.sum(i,loc[j],'*')) for i in D for j in C),\
+#     name="tempoDepot")
 
-# Lateness constraint (11)
-m.addConstrs((z[j] >= t[loc[j]] + dur[j] - tDue[j] for j in C),\
-    name="lateness")
 
-### Objective function
-M = 6100
 
-m.setObjective(z.prod(priority) + gp.quicksum( 0.01 * M  * (xa[j] + xb[j]) for j in C),
-               GRB.MINIMIZE)
+# # Lateness constraint (11)
+# m.addConstrs((z[j] >= t[loc[j]] + dur[j] - tDue[j] for j in C),\
+#     name="lateness")
+
+# ++++++++++++++++++++++++++++ Objective +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+m.setObjective(z.prod(priority) + gp.quicksum( 0.01 * M  * (xa[j] + xb[j]) for j in C),GRB.MINIMIZE)
 
 
 m.optimize()
+
 
 status = m.Status
 if status in [GRB.INF_OR_UNBD, GRB.INFEASIBLE, GRB.UNBOUNDED]:
