@@ -22,8 +22,10 @@ import gurobipy as gp
 import time
 import os
 
-
+# consts.
 M = 10000
+
+
 
 class UAV:
     """
@@ -40,65 +42,122 @@ class UAV:
         self.E = endurance  #[s]
 
 
-# Load data:
-data    = np.genfromtxt("dummy_data.csv",skip_header=1,delimiter=',',dtype=int)
-
-# Data format: node1, node2, distance
 
 
-# Nodes (except deport) & Links:
-N       = int(max(max(data[:,0]),max(data[:,1])))     #nodes = locations
-L       = int(len(data[:,0]))                         # links
+# ++++++++++++++++++++++ Build data strcutures  +++++++++++++++++++++++++++++++++++++++++++++++++++
+
+# 1.  airbase - pizzerias   (directed)   <var_name>_AP
+# 2.  pizzerias - customers (directed)   <var_name>_PC
+# 3.  customer - customer   (UNdirected) <var_name>_CC
+# 4.  customer - airbase    (directed)   <var_name>_CA
 
 
-# Pizzeria:
-P       = range(3)
+def getData():
 
-# Arrival times:
-e       = range(len(P))
+    # Load data:
+    data_CA   = np.genfromtxt("client_airbase_distances.csv",skip_header=1,delimiter=',',dtype=int)
+    data_AP   = np.genfromtxt("airbase_pizzerias_distances.csv",skip_header=1,delimiter=',',dtype=int)
+    data_CC   = np.genfromtxt("client_1_client_2_distances.csv",skip_header=1,delimiter=',',dtype=int)
+    data_PC   = np.genfromtxt("pizzerias_clients.csv",skip_header=1,delimiter=',',dtype=int)
 
-# Customers:
-C       = range(5)
+    e_tab     = np.genfromtxt("pizzeria_expected_arrival_time.csv",skip_header=1,delimiter=',',dtype=int)
+    # Data format: node1 lat,long, node2 lat,long , distance
+
+    dist_AP = data_AP[:,4]
+    dist_PC = data_PC[:,4]
+    dist_CC = data_CC[:,4]
+    dist_CA = data_CA[:,4]
+
+
+
+    # Get number of locations:
+    Cmax = len(dist_CA)  # number of customers
+    Pmax = len(dist_AP)  #number of pizzerias
+    Dmax = Cmax + Pmax + 1  #total number of destinations
+
+
+    # Orders:  time and quanitity
+    e       = np.zeros( ( len(e_tab[:,2]) + 1 ) )
+    e[1:]   = e_tab[:,2]      # to stay consistent,
+    # inidex 0 is the airbase which has no arrival time
+
+    q                 = np.zeros((Dmax))   # each of them wants 2 pizzas
+    q[Pmax: Dmax]     = 2
+    """  !!! CHANGE HERE FOR NUMBER OF PIZZAS ORDERED!!!!"""
+
+    C = range( Pmax + 1, Dmax)# number of customers
+    P = range( 1, Pmax + 1)  #number of pizzerias
+    D = range( Dmax)  #total number of destinations
+
+
+    if len(e) != len(P)+1:
+        print(len(e),len(P))
+        print("Error in the Pizzeria files!\n")
+
+    # Assemble graph:
+    # AP ,PC, CC, CA
+
+    distances = np.zeros((Dmax+1,Dmax+1))
+
+    for i in P:
+        distances[0,i] = dist_AP[i-1]
+
+    for i in P:
+        for j in C:
+            distances[i,j] = dist_PC[i - Pmax]
+
+    k = 0
+    for i in C:
+        for j in C:
+            if i!= j:
+                distances[i,j] = dist_CC[k]
+                distances[j,i] = dist_CC[k]
+
+                k+=1
+
+    for i in C:
+        distances[0,i] = dist_CA[i-Pmax-1]
+
+
+
+    return P,C,D,e,q,distances
+
+
+
+P,C,D,e,q,distances = getData()
+
+
+
+
+# # Nodes (except deport) & Links:
+# N       = int(max(max(data[:,0]),max(data[:,1])))     #nodes = locations
+# L       = int(len(data[:,0]))                         # links
+
+
+# # Pizzeria:
+# Pmax = 3
+# P       = range(Pmax)
+
+# # Arrival times:
+# e       = range(len(P))
+
+# # Customers:
+# Cmax = 5
+# C       = range(Cmax)
+
+# # Destinations := P + C
+# D       = range(N)
+
 
 
 
 # Buy some drones:
 K       = range(2)               # number of drones
-drone   = UAV(1,1,30*60,1000)    # drone model
-
-
-# custumer order:
-q = [1,1,1,1,1]
-
-# Build the graph as a list of tuples:
-links = gp.tuplelist()
-cost  = {}
-distance = np.zeros((N+1,N+1))
+drone   = UAV(1000,2,30*60,1000)    # drone model
 
 
 
-for i in range(L):
 
-    from_node = data[i,0]
-    to_node   = data[i,1]
-    cost_arc  = data[i,2]
-
-    links.append((from_node,to_node))
-
-    distance[from_node, to_node] = cost_arc
-
-# # Build useful data structures
-# J = [j.loc for j in customers]
-# L = list(set([l[0] for l in dist.keys()]))
-# D = list(set([t.depot for t in technicians]))
-# cap = {k.name : k.cap for k in technicians}
-# loc = {j.name : j.loc for j in customers}
-# depot = {k.name : k.depot for k in technicians}
-# canCover = {j.name : [k.name for k in j.job.coveredBy] for j in customers}
-# dur = {j.name : j.job.duration for j in customers}
-# tStart = {j.name : j.tStart for j in customers}
-# tEnd = {j.name : j.tEnd for j in customers}
-# tDue = {j.name : j.tDue for j in customers}
 
 
 ### Create model
@@ -107,13 +166,10 @@ m = gp.Model("VRP")
 #+++++++++++++++++++++++++++++ Decision variables +++++++++++++++++++++++++++++++++++++++++++++++++
 
 # Edge assignment to drone:
-x   = m.addVars(L, L, K, vtype = GRB.BINARY, name="x")   #link active
+x   = m.addVars(D, D, K, vtype = GRB.BINARY, name="x")   #link active
 x_k = m.addVars(K, vtype = GRB.BINARY, name = "x_k")     #drone is active
 tau = m.addVars(P, vtype = GRB.INTEGER, name = 'tau')    #real arrival time at pizzeria
 
-
-# Start time of service
-t = m.addVars(L, ub=600, name="t")
 
 # Lateness of service
 z = m.addVars(C, name="z")
@@ -126,10 +182,10 @@ xb = m.addVars(C, name="xb")
 #+++++++++++++++++++++++++++++++++ Constraints  ++++++++++++++++++++++++++++++++++++++++++++++++++
 
 # 1 All must leave the luanch site (index 0):
-m.addConstrs((gp.sum(x[0,j,k] for j in C if i!=j) == x_k  for k in K), name="Launch site")
+m.addConstrs((gp.quicksum(x[0,j,k] for j in C) == x_k[k]  for k in K), name = "Launch site")
 
 # 2 All must leave the landing site (index 0):
-m.addConstrs((gp.quicksum(x[i,0,k] for i in C if i!=j) == x_k for k in K), name="Landing site")
+m.addConstrs((gp.quicksum(x[i,0,k] for i in C) == x_k[k]  for k in K), name = "Landing site")
 
 # 3 Each pizzeria needes to be visited once:
 m.addConstrs((gp.quicksum(x[i,j,k]  for k in K for j in C)== 1 for i in P), name="visited pizzeria")
@@ -139,16 +195,19 @@ m.addConstrs((gp.quicksum(x[i,j,k]  for k in K for i in P)== 1 for j in C), name
 
 # 5.1 and 5.2 Each drone must leave:
 m.addConstrs((gp.quicksum(x[j,i,k] for j in C) == gp.quicksum(x[i,j,k] for j in C) for i in C for k in K), name="leave customer")
-m.addConstrs((gp.quicksum(x[j,i,k] for i in C) == gp.quicksum(x[0,j,k]) for j in P for k in K), name="leave pizzeria")
+m.addConstrs((gp.quicksum(x[j,i,k] for i in C) == gp.quicksum(x[i,j,k] for i in range(0)) for j in P for k in K), name="leave pizzeria")
 
 # 6 Lower bound on arrival time:
-m.addConstrs((e[i] <=  tau[i] for i in P), name="time bound on pizzeria")
+m.addConstrs((e[i] - tau[i] <= 0 for i in P), name="time bound on pizzeria")
 
-# 7 Time window:
-m.addConstrs((0 + distance[0,j]/drone.v + (1- x[i,j,k]) * M)  <= tau[j] for j in P)   # the first 0 might change later if drones leave at differetn times
+# 7 Time window for arriving at pizzeria:
+m.addConstrs((0 + distances[0,j]/drone.v + (1- x[0,j,k]) * M)  <= tau[j] for j in P for k in K)   # the first 0 might change later if drones leave at differetn times
+
+# # ?? Time window for arriving at customer:
+# m.addConstrs((0 + distance[0,j]/drone.v + (1- x[i,j,k]) * M)  <= tau[j] for j in P for k in K)   # the first 0 might change later if drones leave at differetn times
 
 # 8 Capacity constraints
-m.addConstrs(((gp.quicksum(q[j] * x[i,j,k] for i in C for j in C if i!=j) + (gp.quicksum(q[j] * x[i,j,k] for i in P for j in C if i!=j) )<= drone.q for k in K), name="Capacity")
+m.addConstrs((gp.quicksum(q[j] * x[i,j,k] for i in C for j in C if i!=j) + (gp.quicksum(q[j] * x[i,j,k] for i in P for j in C if i!=j) )<= drone.q for k in K), name="Capacity")
 
 
 
@@ -172,75 +231,19 @@ m.addConstrs(((gp.quicksum(q[j] * x[i,j,k] for i in C for j in C if i!=j) + (gp.
 
 # ++++++++++++++++++++++++++++ Objective +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-m.setObjective(z.prod(priority) + gp.quicksum( 0.01 * M  * (xa[j] + xb[j]) for j in C),GRB.MINIMIZE)
 
+
+alpha     =   0.1   #How important are the customers?
+
+m.setObjective(M * gp.quicksum((tau[i ]- e[i]) for i in  P)\
+               + ( 1-alpha) * gp.quicksum( distances[i,j] * x[i,j,k] for i in P for j in P for k in K )\
+               +  alpha*gp.quicksum( distances[i,j] * x[i,j,k] for i in D for j in D for k in K ) ,GRB.MINIMIZE)
+# m.setObjective(z.prod(priority) + gp.quicksum( 0.01 * M  * (xa[j] + xb[j]) for j in C),GRB.MINIMIZE)
 
 m.optimize()
 
 
 status = m.Status
-if status in [GRB.INF_OR_UNBD, GRB.INFEASIBLE, GRB.UNBOUNDED]:
-    print("Model is either infeasible or unbounded.")
-    sys.exit(0)
-elif status != GRB.OPTIMAL:
-    print("Optimization terminated with status {}".format(status))
-    sys.exit(0)
-
-### Print results
-# Assignments
-print("")
-for j in customers:
-    if g[j.name].X > 0.5:
-        jobStr = "Nobody assigned to {} ({}) in {}".format(j.name,j.job.name,j.loc)
-    else:
-        for k in K:
-            if x[j.name,k].X > 0.5:
-                jobStr = "{} assigned to {} ({}) in {}. Start at t={:.2f}.".format(k,j.name,j.job.name,j.loc,t[j.loc].X)
-                if z[j.name].X > 1e-6:
-                    jobStr += " {:.2f} minutes late.".format(z[j.name].X)
-                if xa[j.name].X > 1e-6:
-                    jobStr += " Start time corrected by {:.2f} minutes.".format(xa[j.name].X)
-                if xb[j.name].X > 1e-6:
-                    jobStr += " End time corrected by {:.2f} minutes.".format(xb[j.name].X)
-    print(jobStr)
-
-# Technicians
-print("")
-for k in technicians:
-    if u[k.name].X > 0.5:
-        cur = k.depot
-        route = k.depot
-        while True:
-            for j in customers:
-                if y[cur,j.loc,k.name].X > 0.5:
-                    route += " -> {} (dist={}, t={:.2f}, proc={})".format(j.loc, dist[cur,j.loc], t[j.loc].X, j.job.duration)
-                    cur = j.loc
-            for i in D:
-                if y[cur,i,k.name].X > 0.5:
-                    route += " -> {} (dist={})".format(i, dist[cur,i])
-                    cur = i
-                    break
-            if cur == k.depot:
-                break
-        print("{}'s route: {}".format(k.name, route))
-    else:
-        print("{} is not used".format(k.name))
-
-
-# Utilization
-print("")
-for k in K:
-    used = capLHS[k].getValue()
-    total = cap[k]
-    util = used / cap[k] if cap[k] > 0 else 0
-    print("{}'s utilization is {:.2%} ({:.2f}/{:.2f})".format(k, util,\
-        used, cap[k]))
-totUsed = sum(capLHS[k].getValue() for k in K)
-totCap = sum(cap[k] for k in K)
-totUtil = totUsed / totCap if totCap > 0 else 0
-print("Total technician utilization is {:.2%} ({:.2f}/{:.2f})".format(totUtil, totUsed, totCap))
-
-
 
 
 
