@@ -23,7 +23,7 @@ import time
 import os
 
 # consts.
-M = 10000
+M = 1000000
 
 
 
@@ -153,7 +153,7 @@ P,C,D,e,q,distances = getData()
 
 # Buy some drones:
 K       = range(2)               # number of drones
-drone   = UAV(1000,2,30*60,1000)    # drone model
+drone   = UAV(10,10,30*60,1000)    # drone model
 
 
 
@@ -171,43 +171,40 @@ x_k = m.addVars(K, vtype = GRB.BINARY, name = "x_k")     #drone is active
 tau = m.addVars(P, vtype = GRB.INTEGER, name = 'tau')    #real arrival time at pizzeria
 
 
-# Lateness of service
-z = m.addVars(C, name="z")
-
-# Artificial variables to correct time window upper and lower limits
-xa = m.addVars(C, name="xa")
-xb = m.addVars(C, name="xb")
-
+m.update()
 
 #+++++++++++++++++++++++++++++++++ Constraints  ++++++++++++++++++++++++++++++++++++++++++++++++++
 
-# 1 All must leave the luanch site (index 0):
-m.addConstrs((gp.quicksum(x[0,j,k] for j in C) == x_k[k]  for k in K), name = "Launch site")
+# 1 Leave the luanch site (index 0):
+m.addConstrs((gp.quicksum(x[0,j,k] for j in P) == x_k[k]  for k in K), name = "Launch site")   # changed C to P
 
-# 2 All must leave the landing site (index 0):
+#2 Land at launch site (index 0):
 m.addConstrs((gp.quicksum(x[i,0,k] for i in C) == x_k[k]  for k in K), name = "Landing site")
 
-# 3 Each pizzeria needes to be visited once:
-m.addConstrs((gp.quicksum(x[i,j,k]  for k in K for j in C)== 1 for i in P), name="visited pizzeria")
+# # 3 Each pizzeria needes to be visited once:
+# m.addConstrs((gp.quicksum(x[0,j,k]  for k in K ) == 1 for j in P), name = "Visit pizzeria")    #!!!! WRONG ONE!!!
 
-# 4 Each pizzeria needes to be visited once:
-m.addConstrs((gp.quicksum(x[i,j,k]  for k in K for i in P)== 1 for j in C), name="visited customer")
+# 4 Each customer needes to be visited once:
+m.addConstrs((gp.quicksum(x[i,j,k]  for k in K for i in P) == 1 for j in C), name = "Visit customer")
 
 # 5.1 and 5.2 Each drone must leave:
-m.addConstrs((gp.quicksum(x[j,i,k] for j in C) == gp.quicksum(x[i,j,k] for j in C) for i in C for k in K), name="leave customer")
-m.addConstrs((gp.quicksum(x[j,i,k] for i in C) == gp.quicksum(x[i,j,k] for i in range(0)) for j in P for k in K), name="leave pizzeria")
+m.addConstrs((gp.quicksum(x[j,i,k] for j in D if i!=j) == gp.quicksum(x[i,j,k] for j in D if i!=j) for i in D for k in K), name = "Leave customer")
+# m.addConstrs((gp.quicksum(x[j,i,k] for i in C) == gp.quicksum(x[i,j,k] for i in range(0)) for j in P for k in K), name = "Leave pizzeria")
 
+# """Time constraints (might not work...)
 # 6 Lower bound on arrival time:
-m.addConstrs((e[i] - tau[i] <= 0 for i in P), name="time bound on pizzeria")
+m.addConstrs((e[i] - tau[i] <= 0 for i in P), name ="time bound on pizzeria")
 
 # 7 Time window for arriving at pizzeria:
-m.addConstrs((0 + distances[0,j]/drone.v + (1- x[0,j,k]) * M)  <= tau[j] for j in P for k in K)   # the first 0 might change later if drones leave at differetn times
+m.addConstrs(((0 + distances[0,j]/drone.v + (1 - x[0,j,k]) * M)  <= tau[j] for j in P for k in K), name = "Time window pizzeria")   # the first 0 might change later if drones leave at differetn times
 
 # # ?? Time window for arriving at customer:
 # m.addConstrs((0 + distance[0,j]/drone.v + (1- x[i,j,k]) * M)  <= tau[j] for j in P for k in K)   # the first 0 might change later if drones leave at differetn times
+# """
+
 
 # 8 Capacity constraints
-m.addConstrs((gp.quicksum(q[j] * x[i,j,k] for i in C for j in C if i!=j) + (gp.quicksum(q[j] * x[i,j,k] for i in P for j in C if i!=j) )<= drone.q for k in K), name="Capacity")
+m.addConstrs((gp.quicksum(q[j] * x[i,j,k] for i in C for j in C if i!=j) + (gp.quicksum(q[j] * x[i,j,k] for j in C) ) <= drone.q for k in K for i in P), name = "Capacity")
 
 
 
@@ -229,75 +226,33 @@ m.addConstrs((gp.quicksum(q[j] * x[i,j,k] for i in C for j in C if i!=j) + (gp.q
 # m.addConstrs((z[j] >= t[loc[j]] + dur[j] - tDue[j] for j in C),\
 #     name="lateness")
 
+m.update()
 # ++++++++++++++++++++++++++++ Objective +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 
 alpha     =   0.1   #How important are the customers?
 
-m.setObjective(M * gp.quicksum((tau[i ]- e[i]) for i in  P)\
-               + ( 1-alpha) * gp.quicksum( distances[i,j] * x[i,j,k] for i in P for j in P for k in K )\
+m.setObjective(( 1-alpha) * gp.quicksum( distances[i,j] * x[i,j,k] for i in P for j in P for k in K )\
                +  alpha*gp.quicksum( distances[i,j] * x[i,j,k] for i in D for j in D for k in K ) ,GRB.MINIMIZE)
-# m.setObjective(z.prod(priority) + gp.quicksum( 0.01 * M  * (xa[j] + xb[j]) for j in C),GRB.MINIMIZE)
+
+m.update()
+
+
+m.write("VRP_basic.lp")
+
+
 
 m.optimize()
 
 
 status = m.Status
 
+# ++++++++++++++++++++++++++++++ Printing & Visualisation ++++++++++++++++++++++++++++++++++++++++++
 
-
-
-
-# # Create model (the name does not matter):
-# model = Model('VRP')
-
-
-# # Add decision variables -- one per link
-# x = model.addVars(links, vtype=GRB.BINARY, name ="link")
-
-# # # Create variables
-# #     x = model.addVar(vtype=GRB.BINARY, name="x")
-# #     y = model.addVar(vtype=GRB.BINARY, name="y")
-# #     z = model.addVar(vtype=GRB.BINARY, name="z")
-
-# #     # Set objective
-# #     model.setObjective(x + y + 2 * z, GRB.MAXIMIZE)
-
-
-# # Constaints:
-# origin      = 28  #start at location 28
-# destination = 25  #end at location 25
-
-# for i in range(1, N+1):
-#     model.addConstr( sum(x[i,j] for i,j in links.select(i, '*')) - sum(x[j,i] for j,i in links.select('*',i)) ==
-#                      (1 if i==origin else -1 if i==destination else 0 ),'node%s_' % i )
-
-
-# print("Optimising....")
-# model.optimize()
-
-# # Print results:
-# path = gp.tuplelist()
-
-# if model.status == GRB.Status.OPTIMAL:
-#    print('\n \n The final path is:')
-#    for i,j in links:
-#        if(x[i,j].x > 0):
-#            path.append((i, j))
-
-
-#    # Reorder the path:
-#    que = len(path)
-#    previous = origin
-
-#    while que:
-
-#        for i in range(len(path)):
-#            if(path[i][0] == previous):
-#                print(path[i])
-#                previous = path[i][1]
-#                que-=1
+for var in m.getVars():
+    if var.x:
+        print('%s %f' % (var.varName,var.x))
 
 
 
