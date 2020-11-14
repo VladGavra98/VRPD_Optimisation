@@ -22,9 +22,10 @@ import gurobipy as gp
 import time
 import os
 
-
-
+# consts.
 M = 10000
+
+
 
 class UAV:
     """
@@ -41,38 +42,6 @@ class UAV:
         self.E = endurance  #[s]
 
 
-# Load data:
-data    = np.genfromtxt("dummy_data.csv",skip_header=1,delimiter=',',dtype=int)
-
-# Data format: node1, node2, distance
-
-
-# Nodes (except deport) & Links:
-N       = int(max(max(data[:,0]),max(data[:,1])))     #nodes = locations
-L       = int(len(data[:,0]))                         # links
-
-
-# Pizzeria:
-Pmax = 3
-P       = range(Pmax)
-
-# Arrival times:
-e       = range(len(P))
-
-# Customers:
-Cmax = 5
-C       = range(Cmax)
-
-# Destinations := P + C
-D       = range(N)
-
-# Buy some drones:
-K       = range(2)               # number of drones
-drone   = UAV(1,1,30*60,1000)    # drone model
-
-
-# custumer order:
-q = [1,1,1,1,1]
 
 
 # ++++++++++++++++++++++ Build data strcutures  +++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -82,38 +51,113 @@ q = [1,1,1,1,1]
 # 3.  customer - customer   (UNdirected) <var_name>_CC
 # 4.  customer - airbase    (directed)   <var_name>_CA
 
-# Build the graph as a list of tuples:
+
+def getData():
+
+    # Load data:
+    data_CA   = np.genfromtxt("client_airbase_distances.csv",skip_header=1,delimiter=',',dtype=int)
+    data_AP   = np.genfromtxt("airbase_pizzerias_distances.csv",skip_header=1,delimiter=',',dtype=int)
+    data_CC   = np.genfromtxt("client_1_client_2_distances.csv",skip_header=1,delimiter=',',dtype=int)
+    data_PC   = np.genfromtxt("pizzerias_clients.csv",skip_header=1,delimiter=',',dtype=int)
+
+    e_tab     = np.genfromtxt("pizzeria_expected_arrival_time.csv",skip_header=1,delimiter=',',dtype=int)
+    # Data format: node1 lat,long, node2 lat,long , distance
+
+    dist_AP = data_AP[:,4]
+    dist_PC = data_PC[:,4]
+    dist_CC = data_CC[:,4]
+    dist_CA = data_CA[:,4]
 
 
 
-links = gp.tuplelist()
-cost  = {}
-distances = np.zeros((N+1,N+1))
+    # Get number of locations:
+    Cmax = len(dist_CA)  # number of customers
+    Pmax = len(dist_AP)  #number of pizzerias
+    Dmax = Cmax + Pmax + 1  #total number of destinations
+
+
+    # Orders:  time and quanitity
+    e       = np.zeros( ( len(e_tab[:,2]) + 1 ) )
+    e[1:]   = e_tab[:,2]      # to stay consistent,
+    # inidex 0 is the airbase which has no arrival time
+
+    q                 = np.zeros((Dmax))   # each of them wants 2 pizzas
+    q[Pmax: Dmax]     = 2
+    """  !!! CHANGE HERE FOR NUMBER OF PIZZAS ORDERED!!!!"""
+
+    C = range( Pmax + 1, Dmax)# number of customers
+    P = range( 1, Pmax + 1)  #number of pizzerias
+    D = range( Dmax)  #total number of destinations
+
+
+    if len(e) != len(P)+1:
+        print(len(e),len(P))
+        print("Error in the Pizzeria files!\n")
+
+    # Assemble graph:
+    # AP ,PC, CC, CA
+
+    distances = np.zeros((Dmax+1,Dmax+1))
+
+    for i in P:
+        distances[0,i] = dist_AP[i-1]
+
+    for i in P:
+        for j in C:
+            distances[i,j] = dist_PC[i - Pmax]
+
+    k = 0
+    for i in C:
+        for j in C:
+            if i!= j:
+                distances[i,j] = dist_CC[k]
+                distances[j,i] = dist_CC[k]
+
+                k+=1
+
+    for i in C:
+        distances[0,i] = dist_CA[i-Pmax-1]
 
 
 
-for i in range(L):
+    return P,C,D,e,q,distances
 
-    from_node = data[i,0]
-    to_node   = data[i,1]
-    cost_arc  = data[i,2]
 
-    links.append((from_node,to_node))
 
-    distances[from_node, to_node] = cost_arc
+P,C,D,e,q,distances = getData()
 
-# # Build useful data structures
-# J = [j.loc for j in customers]
-# L = list(set([l[0] for l in dist.keys()]))
-# D = list(set([t.depot for t in technicians]))
-# cap = {k.name : k.cap for k in technicians}
-# loc = {j.name : j.loc for j in customers}
-# depot = {k.name : k.depot for k in technicians}
-# canCover = {j.name : [k.name for k in j.job.coveredBy] for j in customers}
-# dur = {j.name : j.job.duration for j in customers}
-# tStart = {j.name : j.tStart for j in customers}
-# tEnd = {j.name : j.tEnd for j in customers}
-# tDue = {j.name : j.tDue for j in customers}
+
+
+
+# # Nodes (except deport) & Links:
+# N       = int(max(max(data[:,0]),max(data[:,1])))     #nodes = locations
+# L       = int(len(data[:,0]))                         # links
+
+
+# # Pizzeria:
+# Pmax = 3
+# P       = range(Pmax)
+
+# # Arrival times:
+# e       = range(len(P))
+
+# # Customers:
+# Cmax = 5
+# C       = range(Cmax)
+
+# # Destinations := P + C
+# D       = range(N)
+
+
+
+
+# Buy some drones:
+K       = range(2)               # number of drones
+drone   = UAV(1000,2,30*60,1000)    # drone model
+
+
+
+
 
 
 ### Create model
@@ -122,13 +166,10 @@ m = gp.Model("VRP")
 #+++++++++++++++++++++++++++++ Decision variables +++++++++++++++++++++++++++++++++++++++++++++++++
 
 # Edge assignment to drone:
-x   = m.addVars(L, L, K, vtype = GRB.BINARY, name="x")   #link active
+x   = m.addVars(D, D, K, vtype = GRB.BINARY, name="x")   #link active
 x_k = m.addVars(K, vtype = GRB.BINARY, name = "x_k")     #drone is active
 tau = m.addVars(P, vtype = GRB.INTEGER, name = 'tau')    #real arrival time at pizzeria
 
-
-# Start time of service
-t = m.addVars(L, ub=600, name="t")
 
 # Lateness of service
 z = m.addVars(C, name="z")
@@ -157,10 +198,10 @@ m.addConstrs((gp.quicksum(x[j,i,k] for j in C) == gp.quicksum(x[i,j,k] for j in 
 m.addConstrs((gp.quicksum(x[j,i,k] for i in C) == gp.quicksum(x[i,j,k] for i in range(0)) for j in P for k in K), name="leave pizzeria")
 
 # 6 Lower bound on arrival time:
-m.addConstrs((e[i] <=  tau[i] for i in P), name="time bound on pizzeria")
+m.addConstrs((e[i] - tau[i] <= 0 for i in P), name="time bound on pizzeria")
 
 # 7 Time window for arriving at pizzeria:
-m.addConstrs((0 + distances[0,j]/drone.v + (1- x[i,j,k]) * M)  <= tau[j] for j in P for k in K)   # the first 0 might change later if drones leave at differetn times
+m.addConstrs((0 + distances[0,j]/drone.v + (1- x[0,j,k]) * M)  <= tau[j] for j in P for k in K)   # the first 0 might change later if drones leave at differetn times
 
 # # ?? Time window for arriving at customer:
 # m.addConstrs((0 + distance[0,j]/drone.v + (1- x[i,j,k]) * M)  <= tau[j] for j in P for k in K)   # the first 0 might change later if drones leave at differetn times
