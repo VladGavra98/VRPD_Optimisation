@@ -21,6 +21,7 @@ from copy import deepcopy
 import gurobipy as gp
 import time
 import os
+from itertools import chain
 
 # consts.
 M = 1000000
@@ -89,7 +90,6 @@ def getData():
     P = range( 1, Pmax + 1)  #number of pizzerias
     D = range( Dmax)  #total number of destinations
 
-
     if len(e) != len(P)+1:
         print(len(e),len(P))
         print("Error in the Pizzeria files!\n")
@@ -117,7 +117,6 @@ def getData():
 
     for i in C:
         distances[0,i] = dist_CA[i-Pmax-1]
-
 
 
     return P,C,D,e,q,distances
@@ -152,7 +151,7 @@ P,C,D,e,q,distances = getData()
 
 
 # Buy some drones:
-K       = range(2)               # number of drones
+K       = range(3)               # number of drones
 drone   = UAV(10,10,30*60,1000)    # drone model
 
 
@@ -166,7 +165,31 @@ m = gp.Model("VRP")
 #+++++++++++++++++++++++++++++ Decision variables +++++++++++++++++++++++++++++++++++++++++++++++++
 
 # Edge assignment to drone:
-x   = m.addVars(D, D, K, vtype = GRB.BINARY, name="x")   #link active
+x = {}
+# Add edges from airbase to pizzerias
+for j in P:
+    for k in K:
+        x[0, j, k] = m.addVar(lb=0, ub=1, vtype=GRB.BINARY,name="x[%s,%s,%s]"%(0, j, k))
+# Add edges from pizzerias to customers
+for i in P:
+    for j in C:
+        for k in K:
+            x[i, j, k] = m.addVar(lb=0, ub=1, vtype=GRB.BINARY, name="x[%s,%s,%s]" % (i, j, k))
+# Add edges from customers to customers
+for i in C:
+    for j in C:
+        if i != j:
+            for k in K:
+                x[i, j, k] = m.addVar(lb=0, ub=1, vtype=GRB.BINARY, name="x[%s,%s,%s]" % (i, j, k))
+# Add edges from customers to airbase
+for i in C:
+    for k in K:
+        x[i, 0, k] = m.addVar(lb=0, ub=1, vtype=GRB.BINARY,name="x[%s,%s,%s]"%(i, 0, k))
+
+# x   = m.addVars(D, D, K, vtype = GRB.BINARY, name="x")   #link active
+
+
+
 x_k = m.addVars(K, vtype = GRB.BINARY, name = "x_k")     #drone is active
 tau = m.addVars(P, vtype = GRB.INTEGER, name = 'tau')    #real arrival time at pizzeria
 
@@ -182,21 +205,21 @@ m.addConstrs((gp.quicksum(x[0,j,k] for j in P) == x_k[k]  for k in K), name = "L
 m.addConstrs((gp.quicksum(x[i,0,k] for i in C) == x_k[k]  for k in K), name = "Landing site")
 
 # # 3 Each pizzeria needes to be visited once:
-# m.addConstrs((gp.quicksum(x[0,j,k]  for k in K ) == 1 for j in P), name = "Visit pizzeria")    #!!!! WRONG ONE!!!
+m.addConstrs((gp.quicksum(x[0,j,k]  for k in K ) == 1 for j in P), name = "Visit pizzeria")
 
 # 4 Each customer needes to be visited once:
-m.addConstrs((gp.quicksum(x[i,j,k]  for k in K for i in P) == 1 for j in C), name = "Visit customer")
+m.addConstrs((gp.quicksum(x[i,j,k]  for k in K for i in chain(P, C) if i!=j) == 1 for j in C), name = "Visit customer")
 
 # 5.1 and 5.2 Each drone must leave:
-m.addConstrs((gp.quicksum(x[j,i,k] for j in D if i!=j) == gp.quicksum(x[i,j,k] for j in D if i!=j) for i in D for k in K), name = "Leave customer")
-# m.addConstrs((gp.quicksum(x[j,i,k] for i in C) == gp.quicksum(x[i,j,k] for i in range(0)) for j in P for k in K), name = "Leave pizzeria")
+m.addConstrs((gp.quicksum(x[j,i,k] for j in chain(P, C) if i!=j) == gp.quicksum(x[i,j,k] for j in chain(C, range(1)) if i!=j) for i in C for k in K), name = "Leave customer")
+m.addConstrs((gp.quicksum(x[j,i,k] for i in C) == gp.quicksum(x[i,j,k] for i in [0]) for j in P for k in K), name = "Leave pizzeria")
 
 # """Time constraints (might not work...)
 # 6 Lower bound on arrival time:
 m.addConstrs((e[i] - tau[i] <= 0 for i in P), name ="time bound on pizzeria")
 
 # 7 Time window for arriving at pizzeria:
-m.addConstrs(((0 + distances[0,j]/drone.v + (1 - x[0,j,k]) * M)  <= tau[j] for j in P for k in K), name = "Time window pizzeria")   # the first 0 might change later if drones leave at differetn times
+m.addConstrs(((0 + distances[0,j]/drone.v - (1 - x[0,j,k]) * M)  <= tau[j] for j in P for k in K), name = "Time window pizzeria")   # the first 0 might change later if drones leave at differetn times
 
 # # ?? Time window for arriving at customer:
 # m.addConstrs((0 + distance[0,j]/drone.v + (1- x[i,j,k]) * M)  <= tau[j] for j in P for k in K)   # the first 0 might change later if drones leave at differetn times
@@ -232,9 +255,18 @@ m.update()
 
 
 alpha     =   0.1   #How important are the customers?
+obj = LinExpr()
 
-m.setObjective(( 1-alpha) * gp.quicksum( distances[i,j] * x[i,j,k] for i in P for j in P for k in K )\
-               +  alpha*gp.quicksum( distances[i,j] * x[i,j,k] for i in D for j in D for k in K ) ,GRB.MINIMIZE)
+for key in x:
+    obj += (1-alpha)*x[key]*distances[key[0], key[1]] #part of objective function related to total distance
+    if key[0] in P or key[0] in C:
+        #part of objective function related to distance from pizzeria to customer and customer to customer
+        obj += alpha*x[key]*distances[key[0], key[1]]
+
+m.setObjective(obj, GRB.MINIMIZE)
+
+# m.setObjective(( 1-alpha) * gp.quicksum( distances[i,j] * x[i,j,k] for i in P for j in P for k in K )
+#                +  alpha*gp.quicksum( distances[i,j] * x[i,j,k] for i in D for j in D for k in K ) ,GRB.MINIMIZE)
 
 m.update()
 
