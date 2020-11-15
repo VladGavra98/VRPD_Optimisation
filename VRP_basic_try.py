@@ -22,6 +22,7 @@ import gurobipy as gp
 import time
 import os
 from itertools import chain
+import matplotlib.pyplot as plt
 
 # consts.
 M = 1000000
@@ -69,7 +70,14 @@ def getData():
     dist_CC = data_CC[:,4]
     dist_CA = data_CA[:,4]
 
+    # Load data for visualisation purposes (extracting the coordinates):
+    data_CA_vis = np.genfromtxt("client_airbase_distances.csv", skip_header=1, delimiter=',')
+    data_AP_vis = np.genfromtxt("airbase_pizzerias_distances.csv", skip_header=1, delimiter=',')
 
+    # saving the coordinates of the different destinations for visualisation purposes
+    coord_airbase = data_AP_vis[0, 0:2]  # coordinates of the airbase
+    coord_pizzerias = data_AP_vis[:, 2:4]  # coordinates of the pizzerias
+    coord_clients = data_CA_vis[:, 0:2]  # coordinates of the clients
 
     # Get number of locations:
     Cmax = len(dist_CA)  # number of customers
@@ -119,11 +127,11 @@ def getData():
         distances[0,i] = dist_CA[i-Pmax-1]
 
 
-    return P,C,D,e,q,distances
+    return P,C,D,e,q,coord_airbase,coord_clients,coord_pizzerias,distances
 
 
 
-P,C,D,e,q,distances = getData()
+P,C,D,e,q,coord_airbase,coord_clients,coord_pizzerias,distances = getData()
 
 
 
@@ -286,6 +294,46 @@ for var in m.getVars():
     if var.x:
         print('%s %f' % (var.varName,var.x))
 
+
+def visualisation():
+    imData = plt.imread("map_first_try_basic_model.JPG") #first we are plotting the background image
+
+    fig, ax = plt.subplots()
+    ax.imshow(imData, extent=[4.3458, 4.3954, 51.98554, 52.02264]) #setting the corners of our plot; these points work for well for the initial dataset
+
+    colours=["r","b","c"] #the route of the first drone will be shown in red, of the second one in blue and of the third one in cyan
+
+    for var in m.getVars():
+        if var.x and var.varName[0]=="x" and var.varName[1]=="[": #for plotting, we are interested in the x[i,j,k] variables
+
+            if var.varName[2]=="0": #scenario 1: we are at the airbase, going to the pizzerias
+                y_coord=[coord_airbase[0],coord_pizzerias[int(var.varName[4])-1][0]] #the y_coord is the lattitude (North)
+                x_coord=[coord_airbase[1],coord_pizzerias[int(var.varName[4])-1][1]] #the x_coord is the longitude (East)
+                ax.plot(x_coord, y_coord, colours[int(var.varName[6])], linewidth=2.5)
+
+            if int(var.varName[2])>0 and int(var.varName[2])<=len(P): #we are at a pizzeria, going to a customer
+                y_coord=[coord_pizzerias[int(var.varName[2])-1][0], coord_clients[int(var.varName[4])-len(P)-1][0]]
+                x_coord=[coord_pizzerias[int(var.varName[2])-1][1], coord_clients[int(var.varName[4])-len(P)-1][1]]
+                ax.plot(x_coord, y_coord, colours[int(var.varName[6])], linewidth=2.5)
+
+            if int(var.varName[2])>len(P) and int(var.varName[4])>len(P): #we are at a customer, going to another customer
+                y_coord = [coord_clients[int(var.varName[2])-len(P)-1][0], coord_clients[int(var.varName[4])-len(P)- 1][0]]
+                x_coord = [coord_clients[int(var.varName[2])-len(P)-1][1], coord_clients[int(var.varName[4])-len(P)- 1][1]]
+                ax.plot(x_coord, y_coord, colours[int(var.varName[6])], linewidth=2.5)
+
+            if int(var.varName[2])>len(P) and int(var.varName[4])==0: #we are at a customer, going back to the airbase
+                y_coord = [coord_clients[int(var.varName[2]) - len(P) - 1][0],coord_airbase[0]]
+                x_coord = [coord_clients[int(var.varName[2]) - len(P) - 1][1],coord_airbase[1]]
+                ax.plot(x_coord, y_coord, colours[int(var.varName[6])], linewidth=2.5)
+
+    ax.plot((coord_airbase[1]), (coord_airbase[0]), 'w*', markersize=12) #airbase as white star
+    ax.plot((coord_pizzerias[:, 1]), (coord_pizzerias[:, 0]), 'w^', markersize=7) #pizzerias white triangles
+    ax.plot((coord_clients[:,1]), (coord_clients[:,0]), 'wo') #clients as white dots
+
+    plt.show()
+
+#Comment/uncomment the following line in order to hide/see the visualisation of the current solution
+visualisation()
 
 
 
