@@ -14,6 +14,17 @@ Objective: minimise the total lateness?
 @author: vladg
 
 """
+# -*- coding: utf-8 -*-
+"""
+Just trying around the (basic) set of contrsints and some objective.
+Model architecture:
+    K drones
+    Time window/delay for drone launch / land
+    Capacity
+    Limited endurance
+Objective: minimise the total lateness?
+@author: vladg
+"""
 import numpy as np
 import pandas as pd
 from gurobipy import Model,GRB,LinExpr
@@ -23,6 +34,11 @@ import time
 import os
 from itertools import chain
 import matplotlib.pyplot as plt
+from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+from statistics import mean
+import matplotlib.image as mpimg
+import matplotlib.text as mpl_text
+
 
 # consts.
 M = 1000000
@@ -32,9 +48,7 @@ M = 1000000
 class UAV:
     """
     The class for our drones.
-
     (We can add multiple modles of drones, I don't know how that will look like in the model...')
-
     """
     def __init__(self, maxspeed, capacity, endurance, maxrange):
 
@@ -105,7 +119,7 @@ def getData():
     # Assemble graph:
     # AP ,PC, CC, CA
 
-    distances = np.zeros((Dmax+1,Dmax+1))
+    distances = np.zeros((Dmax,Dmax))
 
     for i in P:
         distances[0,i] = dist_AP[i-1]
@@ -126,6 +140,8 @@ def getData():
     for i in C:
         distances[0,i] = dist_CA[i-Pmax-1]
 
+    distances[:,0] = distances[0,:] # from i to 0
+
 
     return P,C,D,e,q,coord_airbase,coord_clients,coord_pizzerias,distances
 
@@ -133,34 +149,12 @@ def getData():
 
 P,C,D,e,q,coord_airbase,coord_clients,coord_pizzerias,distances = getData()
 
-
-
-
-# # Nodes (except deport) & Links:
-# N       = int(max(max(data[:,0]),max(data[:,1])))     #nodes = locations
-# L       = int(len(data[:,0]))                         # links
-
-
-# # Pizzeria:
-# Pmax = 3
-# P       = range(Pmax)
-
-# # Arrival times:
-# e       = range(len(P))
-
-# # Customers:
-# Cmax = 5
-# C       = range(Cmax)
-
-# # Destinations := P + C
-# D       = range(N)
-
-
+print(distances)
 
 
 # Buy some drones:
 K       = range(3)               # number of drones
-drone   = UAV(10,10,30*60,1000)    # drone model
+drone   = UAV(10,10,180*60,1000)    # drone model
 
 
 
@@ -194,13 +188,16 @@ for i in C:
     for k in K:
         x[i, 0, k] = m.addVar(lb=0, ub=1, vtype=GRB.BINARY,name="x[%s,%s,%s]"%(i, 0, k))
 
-# x   = m.addVars(D, D, K, vtype = GRB.BINARY, name="x")   #link active
-
-
 
 x_k = m.addVars(K, vtype = GRB.BINARY, name = "x_k")     #drone is active
-tau = m.addVars(P, vtype = GRB.INTEGER, name = 'tau')    #real arrival time at pizzeria
 
+
+tau = {}
+for i in P:
+    tau[i] = m.addVar(vtype = GRB.INTEGER, name = 'tau')
+for j in C:
+    tau[j] = m.addVar(vtype = GRB.INTEGER, name = 'tau')
+tau[0] = m.addVar(vtype = GRB.INTEGER, name = 'tau')
 
 m.update()
 
@@ -222,47 +219,25 @@ m.addConstrs((gp.quicksum(x[i,j,k]  for k in K for i in chain(P, C) if i!=j) == 
 m.addConstrs((gp.quicksum(x[j,i,k] for j in chain(P, C) if i!=j) == gp.quicksum(x[i,j,k] for j in chain(C, range(1)) if i!=j) for i in C for k in K), name = "Leave customer")
 m.addConstrs((gp.quicksum(x[j,i,k] for i in C) == gp.quicksum(x[i,j,k] for i in [0]) for j in P for k in K), name = "Leave pizzeria")
 
-# """Time constraints (might not work...)
 # 6 Lower bound on arrival time:
 m.addConstrs((e[i] - tau[i] <= 0 for i in P), name ="time bound on pizzeria")
 
 # 7 Time window for arriving at pizzeria:
 m.addConstrs(((0 + distances[0,j]/drone.v - (1 - x[0,j,k]) * M)  <= tau[j] for j in P for k in K), name = "Time window pizzeria")   # the first 0 might change later if drones leave at differetn times
 
-# # ?? Time window for arriving at customer:
-# m.addConstrs((0 + distance[0,j]/drone.v + (1- x[i,j,k]) * M)  <= tau[j] for j in P for k in K)   # the first 0 might change later if drones leave at differetn times
-# """
+m.addConstrs(((tau[i] + distances[i,j]/drone.v - (1 - x[i,j,k]) * M) <= tau[j] for i in chain(P, C) for j in C for k in K if i!=j), name = "Time window pizzeria to customer and customer to customer")
+# tau[j] has no upper bound except for endurance
 
-
-# 8 Capacity constraints
-m.addConstrs((gp.quicksum(q[j] * x[i,j,k] for i in C for j in C if i!=j) + (gp.quicksum(q[j] * x[i,j,k] for j in C) ) <= drone.q for k in K for i in P), name = "Capacity")
-
-
-
-# # Temporal constraints (8) for customer locations
-# M = {(i,j) : 600 + dur[i] + dist[loc[i], loc[j]] for i in C for j in C}
-# m.addConstrs((t[loc[j]] >= t[loc[i]] + dur[i] + dist[loc[i], loc[j]]\
-#     - M[i,j]*(1 - gp.quicksum(y[loc[i],loc[j],k] for k in K))\
-#     for i in C for j in C), name="tempoCustomer")
-
-# # Temporal constraints (8) for depot locations
-# M = {(i,j) : 600 + dist[i, loc[j]] for i in D for j in C}
-# m.addConstrs((t[loc[j]] >= t[i] + dist[i, loc[j]]\
-#     - M[i,j]*(1 - y.sum(i,loc[j],'*')) for i in D for j in C),\
-#     name="tempoDepot")
-
-
-
-# # Lateness constraint (11)
-# m.addConstrs((z[j] >= t[loc[j]] + dur[j] - tDue[j] for j in C),\
-#     name="lateness")
+# # 8 Endurance constraints
+m.addConstrs((tau[i] <= drone.E - distances[i,0]/drone.v  for i in C), name = "Endurance1") # we need to change endurance constraint
+m.addConstr((tau[0] <= drone.E), name = "Endurance2")
 
 m.update()
 # ++++++++++++++++++++++++++++ Objective +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 
-alpha     =   0.1   #How important are the customers?
+alpha     =   1   #How important are the customers?
 obj = LinExpr()
 
 for key in x:
@@ -270,11 +245,15 @@ for key in x:
     if key[0] in P or key[0] in C:
         #part of objective function related to distance from pizzeria to customer and customer to customer
         obj += alpha*x[key]*distances[key[0], key[1]]
+for i in P:
+    obj += M*(tau[i]-e[i]) # minimise time delay vs expected arrival time at pizzeria
+for j in chain(C, P):
+    obj += M*M*tau[j] # minimise arrival times( otherwise tau goes to upper bound)
+
+
 
 m.setObjective(obj, GRB.MINIMIZE)
 
-# m.setObjective(( 1-alpha) * gp.quicksum( distances[i,j] * x[i,j,k] for i in P for j in P for k in K )
-#                +  alpha*gp.quicksum( distances[i,j] * x[i,j,k] for i in D for j in D for k in K ) ,GRB.MINIMIZE)
 
 m.update()
 
@@ -295,7 +274,8 @@ for var in m.getVars():
         print('%s %f' % (var.varName,var.x))
 
 
-def visualisation():
+def visualisation(print_tau):
+
     imData = plt.imread("map_first_try_basic_model.JPG") #first we are plotting the background image
 
     fig, ax = plt.subplots()
@@ -311,29 +291,61 @@ def visualisation():
                 x_coord=[coord_airbase[1],coord_pizzerias[int(var.varName[4])-1][1]] #the x_coord is the longitude (East)
                 ax.plot(x_coord, y_coord, colours[int(var.varName[6])], linewidth=2.5)
 
-            if int(var.varName[2])>0 and int(var.varName[2])<=len(P): #we are at a pizzeria, going to a customer
+                # ---- plotting the drone icons ----
+                arr_drone = mpimg.imread("Drone_white_icon.png")
+                imagebox = OffsetImage(arr_drone, zoom=0.04)
+                ab = AnnotationBbox(imagebox, (mean(x_coord), mean(y_coord)), frameon=False)
+                ax.add_artist(ab)
+                ax.add_artist(mpl_text.Text(x=mean(x_coord), y=mean(y_coord), text=str(var.varName[6]), weight="bold", color='black', fontsize=9, verticalalignment='center',horizontalalignment='center'))
+
+
+            if int(var.varName[2])>0 and int(var.varName[2])<=len(P): #scenario 2: we are at a pizzeria, going to a customer
                 y_coord=[coord_pizzerias[int(var.varName[2])-1][0], coord_clients[int(var.varName[4])-len(P)-1][0]]
                 x_coord=[coord_pizzerias[int(var.varName[2])-1][1], coord_clients[int(var.varName[4])-len(P)-1][1]]
                 ax.plot(x_coord, y_coord, colours[int(var.varName[6])], linewidth=2.5)
 
-            if int(var.varName[2])>len(P) and int(var.varName[4])>len(P): #we are at a customer, going to another customer
+            if int(var.varName[2])>len(P) and int(var.varName[4])>len(P): #scenario 3: we are at a customer, going to another customer
                 y_coord = [coord_clients[int(var.varName[2])-len(P)-1][0], coord_clients[int(var.varName[4])-len(P)- 1][0]]
                 x_coord = [coord_clients[int(var.varName[2])-len(P)-1][1], coord_clients[int(var.varName[4])-len(P)- 1][1]]
                 ax.plot(x_coord, y_coord, colours[int(var.varName[6])], linewidth=2.5)
 
-            if int(var.varName[2])>len(P) and int(var.varName[4])==0: #we are at a customer, going back to the airbase
+            if int(var.varName[2])>len(P) and int(var.varName[4])==0: #scenario 4: we are at a customer, going back to the airbase
                 y_coord = [coord_clients[int(var.varName[2]) - len(P) - 1][0],coord_airbase[0]]
                 x_coord = [coord_clients[int(var.varName[2]) - len(P) - 1][1],coord_airbase[1]]
                 ax.plot(x_coord, y_coord, colours[int(var.varName[6])], linewidth=2.5)
 
+    # -----plotting the info about the airbase------
     ax.plot((coord_airbase[1]), (coord_airbase[0]), 'w*', markersize=12) #airbase as white star
+
+    ax.text((coord_airbase[1]), (coord_airbase[0])-0.001, 'Airbase', color='white', fontsize=10, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
+    if (print_tau == True):
+        ax.text((coord_airbase[1]), (coord_airbase[0])-0.002, r'$\tau$' + "=" + str(tau[0].x), color='white', fontsize=8, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
+
+
+    # -----plotting the info about the pizzerias------
     ax.plot((coord_pizzerias[:, 1]), (coord_pizzerias[:, 0]), 'w^', markersize=7) #pizzerias white triangles
+
+    for i in range(len(coord_pizzerias)):
+        ax.text((coord_pizzerias[i,1]), (coord_pizzerias[i,0]) - 0.001, str(i+1), color='white', fontsize=10,
+                bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
+        if (print_tau == True):
+            ax.text((coord_pizzerias[i,1]), (coord_pizzerias[i,0])-0.002, r'$\tau$' + "=" + str(tau[i+1].x), color='white', fontsize=8, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
+
+
+    # -----plotting the info about the clients------
     ax.plot((coord_clients[:,1]), (coord_clients[:,0]), 'wo') #clients as white dots
+
+    for i in range(len(coord_clients)):
+        ax.text((coord_clients[i,1]), (coord_clients[i,0]) - 0.001, str(i+1+len(P)), color='white', fontsize=10,
+                bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
+        if (print_tau == True):
+            ax.text((coord_clients[i,1]), (coord_clients[i,0])-0.002, r'$\tau$' + "=" + str(tau[i+1+len(P)].x), color='white', fontsize=8, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
+
 
     plt.show()
 
 #Comment/uncomment the following line in order to hide/see the visualisation of the current solution
-visualisation()
+visualisation(True)    #write True if you want to also plot the taus. Write False if you don't want the taus to be plotted
 
 
 
