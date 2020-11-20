@@ -14,6 +14,17 @@ Objective: minimise the total lateness?
 @author: vladg
 
 """
+# -*- coding: utf-8 -*-
+"""
+Just trying around the (basic) set of contrsints and some objective.
+Model architecture:
+    K drones
+    Time window/delay for drone launch / land
+    Capacity
+    Limited endurance
+Objective: minimise the total lateness?
+@author: vladg
+"""
 import numpy as np
 import pandas as pd
 from gurobipy import Model,GRB,LinExpr
@@ -23,6 +34,11 @@ import time
 import os
 from itertools import chain
 import matplotlib.pyplot as plt
+from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+from statistics import mean
+import matplotlib.image as mpimg
+import matplotlib.text as mpl_text
+
 
 # consts.
 M = 1000000
@@ -32,9 +48,7 @@ M = 1000000
 class UAV:
     """
     The class for our drones.
-
     (We can add multiple modles of drones, I don't know how that will look like in the model...')
-
     """
     def __init__(self, maxspeed, capacity, endurance, maxrange):
 
@@ -260,7 +274,8 @@ for var in m.getVars():
         print('%s %f' % (var.varName,var.x))
 
 
-def visualisation():
+def visualisation(print_tau):
+
     imData = plt.imread("map_first_try_basic_model.JPG") #first we are plotting the background image
 
     fig, ax = plt.subplots()
@@ -276,29 +291,61 @@ def visualisation():
                 x_coord=[coord_airbase[1],coord_pizzerias[int(var.varName[4])-1][1]] #the x_coord is the longitude (East)
                 ax.plot(x_coord, y_coord, colours[int(var.varName[6])], linewidth=2.5)
 
-            if int(var.varName[2])>0 and int(var.varName[2])<=len(P): #we are at a pizzeria, going to a customer
+                # ---- plotting the drone icons ----
+                arr_drone = mpimg.imread("Drone_white_icon.png")
+                imagebox = OffsetImage(arr_drone, zoom=0.04)
+                ab = AnnotationBbox(imagebox, (mean(x_coord), mean(y_coord)), frameon=False)
+                ax.add_artist(ab)
+                ax.add_artist(mpl_text.Text(x=mean(x_coord), y=mean(y_coord), text=str(var.varName[6]), weight="bold", color='black', fontsize=9, verticalalignment='center',horizontalalignment='center'))
+
+
+            if int(var.varName[2])>0 and int(var.varName[2])<=len(P): #scenario 2: we are at a pizzeria, going to a customer
                 y_coord=[coord_pizzerias[int(var.varName[2])-1][0], coord_clients[int(var.varName[4])-len(P)-1][0]]
                 x_coord=[coord_pizzerias[int(var.varName[2])-1][1], coord_clients[int(var.varName[4])-len(P)-1][1]]
                 ax.plot(x_coord, y_coord, colours[int(var.varName[6])], linewidth=2.5)
 
-            if int(var.varName[2])>len(P) and int(var.varName[4])>len(P): #we are at a customer, going to another customer
+            if int(var.varName[2])>len(P) and int(var.varName[4])>len(P): #scenario 3: we are at a customer, going to another customer
                 y_coord = [coord_clients[int(var.varName[2])-len(P)-1][0], coord_clients[int(var.varName[4])-len(P)- 1][0]]
                 x_coord = [coord_clients[int(var.varName[2])-len(P)-1][1], coord_clients[int(var.varName[4])-len(P)- 1][1]]
                 ax.plot(x_coord, y_coord, colours[int(var.varName[6])], linewidth=2.5)
 
-            if int(var.varName[2])>len(P) and int(var.varName[4])==0: #we are at a customer, going back to the airbase
+            if int(var.varName[2])>len(P) and int(var.varName[4])==0: #scenario 4: we are at a customer, going back to the airbase
                 y_coord = [coord_clients[int(var.varName[2]) - len(P) - 1][0],coord_airbase[0]]
                 x_coord = [coord_clients[int(var.varName[2]) - len(P) - 1][1],coord_airbase[1]]
                 ax.plot(x_coord, y_coord, colours[int(var.varName[6])], linewidth=2.5)
 
+    # -----plotting the info about the airbase------
     ax.plot((coord_airbase[1]), (coord_airbase[0]), 'w*', markersize=12) #airbase as white star
+
+    ax.text((coord_airbase[1]), (coord_airbase[0])-0.001, 'Airbase', color='white', fontsize=10, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
+    if (print_tau == True):
+        ax.text((coord_airbase[1]), (coord_airbase[0])-0.002, r'$\tau$' + "=" + str(tau[0].x), color='white', fontsize=8, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
+
+
+    # -----plotting the info about the pizzerias------
     ax.plot((coord_pizzerias[:, 1]), (coord_pizzerias[:, 0]), 'w^', markersize=7) #pizzerias white triangles
+
+    for i in range(len(coord_pizzerias)):
+        ax.text((coord_pizzerias[i,1]), (coord_pizzerias[i,0]) - 0.001, str(i+1), color='white', fontsize=10,
+                bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
+        if (print_tau == True):
+            ax.text((coord_pizzerias[i,1]), (coord_pizzerias[i,0])-0.002, r'$\tau$' + "=" + str(tau[i+1].x), color='white', fontsize=8, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
+
+
+    # -----plotting the info about the clients------
     ax.plot((coord_clients[:,1]), (coord_clients[:,0]), 'wo') #clients as white dots
+
+    for i in range(len(coord_clients)):
+        ax.text((coord_clients[i,1]), (coord_clients[i,0]) - 0.001, str(i+1+len(P)), color='white', fontsize=10,
+                bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
+        if (print_tau == True):
+            ax.text((coord_clients[i,1]), (coord_clients[i,0])-0.002, r'$\tau$' + "=" + str(tau[i+1+len(P)].x), color='white', fontsize=8, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
+
 
     plt.show()
 
 #Comment/uncomment the following line in order to hide/see the visualisation of the current solution
-visualisation()
+visualisation(True)    #write True if you want to also plot the taus. Write False if you don't want the taus to be plotted
 
 
 
