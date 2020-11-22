@@ -126,7 +126,7 @@ def getData():
 
     for i in P:
         for j in C:
-            distances[i,j] = dist_PC[i - Pmax]
+            distances[i,j] = dist_PC[(i-P[0])*Cmax +j-C[0]]
 
     k = 0
     for i in C:
@@ -247,8 +247,9 @@ for key in x:
         obj += alpha*x[key]*distances[key[0], key[1]]
 for i in P:
     obj += M*(tau[i]-e[i]) # minimise time delay vs expected arrival time at pizzeria
-for j in chain(C, P):
-    obj += M*M*tau[j] # minimise arrival times( otherwise tau goes to upper bound)
+
+#for j in chain(C, P):
+#    obj += M*tau[j] # minimise arrival times( otherwise tau goes to upper bound) maybe try to avoid implementing this
 
 
 
@@ -341,14 +342,28 @@ def visualisation(print_tau):
         if (print_tau == True):
             ax.text((coord_clients[i,1]), (coord_clients[i,0])-0.002, r'$\tau$' + "=" + str(tau[i+1+len(P)].x), color='white', fontsize=8, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
 
-
+    plt.xlabel("Longitutde (" + u"\N{DEGREE SIGN}" + "E)")
+    plt.ylabel("Latitude (" + u"\N{DEGREE SIGN}" + "N)")
     plt.show()
 
 #Comment/uncomment the following line in order to hide/see the visualisation of the current solution
 visualisation(True)    #write True if you want to also plot the taus. Write False if you don't want the taus to be plotted
 
+def verify_cross_over(verify):
+    if verify==True:
+        distance_cross_over = distances[0, 1] + distances[1, 6] + distances[6, 5] + distances[5, 4] + distances[4, 0]
+        distance_no_cross_over = distances[0, 1] + distances[1, 5] + distances[5, 4] + distances[4, 6] + distances[6, 0]
 
+        print(distance_cross_over, distance_no_cross_over)
 
+        if distance_cross_over > distance_no_cross_over:
+            print("Cross over implies larger distance")
+        else:
+            print("Not crossing over implies larger distance")
+
+        print(distances)
+
+verify_cross_over(True)
 
 
 
