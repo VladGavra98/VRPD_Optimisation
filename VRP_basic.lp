@@ -1,18 +1,18 @@
 \ Model VRP
 \ LP format - for model browsing. Use MPS format to capture full model detail.
 Minimize
-  2936 x[1,4,0] + 2936 x[1,4,1] + 2936 x[1,4,2] + 2936 x[1,5,0]
-   + 2936 x[1,5,1] + 2936 x[1,5,2] + 2936 x[1,6,0] + 2936 x[1,6,1]
-   + 2936 x[1,6,2] + 2936 x[1,7,0] + 2936 x[1,7,1] + 2936 x[1,7,2]
-   + 2936 x[1,8,0] + 2936 x[1,8,1] + 2936 x[1,8,2] + 866 x[2,4,0]
-   + 866 x[2,4,1] + 866 x[2,4,2] + 866 x[2,5,0] + 866 x[2,5,1]
-   + 866 x[2,5,2] + 866 x[2,6,0] + 866 x[2,6,1] + 866 x[2,6,2]
-   + 866 x[2,7,0] + 866 x[2,7,1] + 866 x[2,7,2] + 866 x[2,8,0]
-   + 866 x[2,8,1] + 866 x[2,8,2] + 3300 x[3,4,0] + 3300 x[3,4,1]
-   + 3300 x[3,4,2] + 3300 x[3,5,0] + 3300 x[3,5,1] + 3300 x[3,5,2]
-   + 3300 x[3,6,0] + 3300 x[3,6,1] + 3300 x[3,6,2] + 3300 x[3,7,0]
-   + 3300 x[3,7,1] + 3300 x[3,7,2] + 3300 x[3,8,0] + 3300 x[3,8,1]
-   + 3300 x[3,8,2] + 168 x[4,5,0] + 168 x[4,5,1] + 168 x[4,5,2]
+  3300 x[1,4,0] + 3300 x[1,4,1] + 3300 x[1,4,2] + 3195 x[1,5,0]
+   + 3195 x[1,5,1] + 3195 x[1,5,2] + 2843 x[1,6,0] + 2843 x[1,6,1]
+   + 2843 x[1,6,2] + 2558 x[1,7,0] + 2558 x[1,7,1] + 2558 x[1,7,2]
+   + 1758 x[1,8,0] + 1758 x[1,8,1] + 1758 x[1,8,2] + 3077 x[2,4,0]
+   + 3077 x[2,4,1] + 3077 x[2,4,2] + 2947 x[2,5,0] + 2947 x[2,5,1]
+   + 2947 x[2,5,2] + 2656 x[2,6,0] + 2656 x[2,6,1] + 2656 x[2,6,2]
+   + 2755 x[2,7,0] + 2755 x[2,7,1] + 2755 x[2,7,2] + 1119 x[2,8,0]
+   + 1119 x[2,8,1] + 1119 x[2,8,2] + 3064 x[3,4,0] + 3064 x[3,4,1]
+   + 3064 x[3,4,2] + 2924 x[3,5,0] + 2924 x[3,5,1] + 2924 x[3,5,2]
+   + 2669 x[3,6,0] + 2669 x[3,6,1] + 2669 x[3,6,2] + 2936 x[3,7,0]
+   + 2936 x[3,7,1] + 2936 x[3,7,2] + 866 x[3,8,0] + 866 x[3,8,1]
+   + 866 x[3,8,2] + 168 x[4,5,0] + 168 x[4,5,1] + 168 x[4,5,2]
    + 472 x[4,6,0] + 472 x[4,6,1] + 472 x[4,6,2] + 1898 x[4,7,0]
    + 1898 x[4,7,1] + 1898 x[4,7,2] + 2568 x[4,8,0] + 2568 x[4,8,1]
    + 2568 x[4,8,2] + 168 x[5,4,0] + 168 x[5,4,1] + 168 x[5,4,2]
@@ -31,7 +31,9 @@ Minimize
    + 4737 x[5,0,0] + 4737 x[5,0,1] + 4737 x[5,0,2] + 4351 x[6,0,0]
    + 4351 x[6,0,1] + 4351 x[6,0,2] + 3634 x[7,0,0] + 3634 x[7,0,1]
    + 3634 x[7,0,2] + 3326 x[8,0,0] + 3326 x[8,0,1] + 3326 x[8,0,2]
-   + 1e+06 tau + 1e+06 tau + 1e+06 tau - 2.1e+09 Constant
+
+   + 1e+06 tau + 1e+06 tau + 1e+06 tau - 3.6e+09 Constant
+
 Subject To
  Launch_site[0]: x[0,1,0] + x[0,2,0] + x[0,3,0] - x_k[0] = 0
  Launch_site[1]: x[0,1,1] + x[0,2,1] + x[0,3,1] - x_k[1] = 0
@@ -141,95 +143,95 @@ Subject To
  Time_window_pizzeria[3,1]: 1e+06 x[0,3,1] - tau <= 999752.8
  Time_window_pizzeria[3,2]: 1e+06 x[0,3,2] - tau <= 999752.8
  Time_window_pizzeria_to_customer_and_customer_to_customer[1,4,0]:
-   1e+06 x[1,4,0] + tau - tau <= 999706.4
+   1e+06 x[1,4,0] + tau - tau <= 999670
  Time_window_pizzeria_to_customer_and_customer_to_customer[1,4,1]:
-   1e+06 x[1,4,1] + tau - tau <= 999706.4
+   1e+06 x[1,4,1] + tau - tau <= 999670
  Time_window_pizzeria_to_customer_and_customer_to_customer[1,4,2]:
-   1e+06 x[1,4,2] + tau - tau <= 999706.4
+   1e+06 x[1,4,2] + tau - tau <= 999670
  Time_window_pizzeria_to_customer_and_customer_to_customer[1,5,0]:
-   1e+06 x[1,5,0] + tau - tau <= 999706.4
+   1e+06 x[1,5,0] + tau - tau <= 999680.5
  Time_window_pizzeria_to_customer_and_customer_to_customer[1,5,1]:
-   1e+06 x[1,5,1] + tau - tau <= 999706.4
+   1e+06 x[1,5,1] + tau - tau <= 999680.5
  Time_window_pizzeria_to_customer_and_customer_to_customer[1,5,2]:
-   1e+06 x[1,5,2] + tau - tau <= 999706.4
+   1e+06 x[1,5,2] + tau - tau <= 999680.5
  Time_window_pizzeria_to_customer_and_customer_to_customer[1,6,0]:
-   1e+06 x[1,6,0] + tau - tau <= 999706.4
+   1e+06 x[1,6,0] + tau - tau <= 999715.7
  Time_window_pizzeria_to_customer_and_customer_to_customer[1,6,1]:
-   1e+06 x[1,6,1] + tau - tau <= 999706.4
+   1e+06 x[1,6,1] + tau - tau <= 999715.7
  Time_window_pizzeria_to_customer_and_customer_to_customer[1,6,2]:
-   1e+06 x[1,6,2] + tau - tau <= 999706.4
+   1e+06 x[1,6,2] + tau - tau <= 999715.7
  Time_window_pizzeria_to_customer_and_customer_to_customer[1,7,0]:
-   1e+06 x[1,7,0] + tau - tau <= 999706.4
+   1e+06 x[1,7,0] + tau - tau <= 999744.2
  Time_window_pizzeria_to_customer_and_customer_to_customer[1,7,1]:
-   1e+06 x[1,7,1] + tau - tau <= 999706.4
+   1e+06 x[1,7,1] + tau - tau <= 999744.2
  Time_window_pizzeria_to_customer_and_customer_to_customer[1,7,2]:
-   1e+06 x[1,7,2] + tau - tau <= 999706.4
+   1e+06 x[1,7,2] + tau - tau <= 999744.2
  Time_window_pizzeria_to_customer_and_customer_to_customer[1,8,0]:
-   1e+06 x[1,8,0] + tau - tau <= 999706.4
+   1e+06 x[1,8,0] + tau - tau <= 999824.2
  Time_window_pizzeria_to_customer_and_customer_to_customer[1,8,1]:
-   1e+06 x[1,8,1] + tau - tau <= 999706.4
+   1e+06 x[1,8,1] + tau - tau <= 999824.2
  Time_window_pizzeria_to_customer_and_customer_to_customer[1,8,2]:
-   1e+06 x[1,8,2] + tau - tau <= 999706.4
+   1e+06 x[1,8,2] + tau - tau <= 999824.2
  Time_window_pizzeria_to_customer_and_customer_to_customer[2,4,0]:
-   1e+06 x[2,4,0] + tau - tau <= 999913.4
+   1e+06 x[2,4,0] + tau - tau <= 999692.3
  Time_window_pizzeria_to_customer_and_customer_to_customer[2,4,1]:
-   1e+06 x[2,4,1] + tau - tau <= 999913.4
+   1e+06 x[2,4,1] + tau - tau <= 999692.3
  Time_window_pizzeria_to_customer_and_customer_to_customer[2,4,2]:
-   1e+06 x[2,4,2] + tau - tau <= 999913.4
+   1e+06 x[2,4,2] + tau - tau <= 999692.3
  Time_window_pizzeria_to_customer_and_customer_to_customer[2,5,0]:
-   1e+06 x[2,5,0] + tau - tau <= 999913.4
+   1e+06 x[2,5,0] + tau - tau <= 999705.3
  Time_window_pizzeria_to_customer_and_customer_to_customer[2,5,1]:
-   1e+06 x[2,5,1] + tau - tau <= 999913.4
+   1e+06 x[2,5,1] + tau - tau <= 999705.3
  Time_window_pizzeria_to_customer_and_customer_to_customer[2,5,2]:
-   1e+06 x[2,5,2] + tau - tau <= 999913.4
+   1e+06 x[2,5,2] + tau - tau <= 999705.3
  Time_window_pizzeria_to_customer_and_customer_to_customer[2,6,0]:
-   1e+06 x[2,6,0] + tau - tau <= 999913.4
+   1e+06 x[2,6,0] + tau - tau <= 999734.4
  Time_window_pizzeria_to_customer_and_customer_to_customer[2,6,1]:
-   1e+06 x[2,6,1] + tau - tau <= 999913.4
+   1e+06 x[2,6,1] + tau - tau <= 999734.4
  Time_window_pizzeria_to_customer_and_customer_to_customer[2,6,2]:
-   1e+06 x[2,6,2] + tau - tau <= 999913.4
+   1e+06 x[2,6,2] + tau - tau <= 999734.4
  Time_window_pizzeria_to_customer_and_customer_to_customer[2,7,0]:
-   1e+06 x[2,7,0] + tau - tau <= 999913.4
+   1e+06 x[2,7,0] + tau - tau <= 999724.5
  Time_window_pizzeria_to_customer_and_customer_to_customer[2,7,1]:
-   1e+06 x[2,7,1] + tau - tau <= 999913.4
+   1e+06 x[2,7,1] + tau - tau <= 999724.5
  Time_window_pizzeria_to_customer_and_customer_to_customer[2,7,2]:
-   1e+06 x[2,7,2] + tau - tau <= 999913.4
+   1e+06 x[2,7,2] + tau - tau <= 999724.5
  Time_window_pizzeria_to_customer_and_customer_to_customer[2,8,0]:
-   1e+06 x[2,8,0] + tau - tau <= 999913.4
+   1e+06 x[2,8,0] + tau - tau <= 999888.1
  Time_window_pizzeria_to_customer_and_customer_to_customer[2,8,1]:
-   1e+06 x[2,8,1] + tau - tau <= 999913.4
+   1e+06 x[2,8,1] + tau - tau <= 999888.1
  Time_window_pizzeria_to_customer_and_customer_to_customer[2,8,2]:
-   1e+06 x[2,8,2] + tau - tau <= 999913.4
+   1e+06 x[2,8,2] + tau - tau <= 999888.1
  Time_window_pizzeria_to_customer_and_customer_to_customer[3,4,0]:
-   1e+06 x[3,4,0] + tau - tau <= 999670
+   1e+06 x[3,4,0] + tau - tau <= 999693.6
  Time_window_pizzeria_to_customer_and_customer_to_customer[3,4,1]:
-   1e+06 x[3,4,1] + tau - tau <= 999670
+   1e+06 x[3,4,1] + tau - tau <= 999693.6
  Time_window_pizzeria_to_customer_and_customer_to_customer[3,4,2]:
-   1e+06 x[3,4,2] + tau - tau <= 999670
+   1e+06 x[3,4,2] + tau - tau <= 999693.6
  Time_window_pizzeria_to_customer_and_customer_to_customer[3,5,0]:
-   1e+06 x[3,5,0] + tau - tau <= 999670
+   1e+06 x[3,5,0] + tau - tau <= 999707.6
  Time_window_pizzeria_to_customer_and_customer_to_customer[3,5,1]:
-   1e+06 x[3,5,1] + tau - tau <= 999670
+   1e+06 x[3,5,1] + tau - tau <= 999707.6
  Time_window_pizzeria_to_customer_and_customer_to_customer[3,5,2]:
-   1e+06 x[3,5,2] + tau - tau <= 999670
+   1e+06 x[3,5,2] + tau - tau <= 999707.6
  Time_window_pizzeria_to_customer_and_customer_to_customer[3,6,0]:
-   1e+06 x[3,6,0] + tau - tau <= 999670
+   1e+06 x[3,6,0] + tau - tau <= 999733.1
  Time_window_pizzeria_to_customer_and_customer_to_customer[3,6,1]:
-   1e+06 x[3,6,1] + tau - tau <= 999670
+   1e+06 x[3,6,1] + tau - tau <= 999733.1
  Time_window_pizzeria_to_customer_and_customer_to_customer[3,6,2]:
-   1e+06 x[3,6,2] + tau - tau <= 999670
+   1e+06 x[3,6,2] + tau - tau <= 999733.1
  Time_window_pizzeria_to_customer_and_customer_to_customer[3,7,0]:
-   1e+06 x[3,7,0] + tau - tau <= 999670
+   1e+06 x[3,7,0] + tau - tau <= 999706.4
  Time_window_pizzeria_to_customer_and_customer_to_customer[3,7,1]:
-   1e+06 x[3,7,1] + tau - tau <= 999670
+   1e+06 x[3,7,1] + tau - tau <= 999706.4
  Time_window_pizzeria_to_customer_and_customer_to_customer[3,7,2]:
-   1e+06 x[3,7,2] + tau - tau <= 999670
+   1e+06 x[3,7,2] + tau - tau <= 999706.4
  Time_window_pizzeria_to_customer_and_customer_to_customer[3,8,0]:
-   1e+06 x[3,8,0] + tau - tau <= 999670
+   1e+06 x[3,8,0] + tau - tau <= 999913.4
  Time_window_pizzeria_to_customer_and_customer_to_customer[3,8,1]:
-   1e+06 x[3,8,1] + tau - tau <= 999670
+   1e+06 x[3,8,1] + tau - tau <= 999913.4
  Time_window_pizzeria_to_customer_and_customer_to_customer[3,8,2]:
-   1e+06 x[3,8,2] + tau - tau <= 999670
+   1e+06 x[3,8,2] + tau - tau <= 999913.4
  Time_window_pizzeria_to_customer_and_customer_to_customer[4,5,0]:
    1e+06 x[4,5,0] + tau - tau <= 999983.2
  Time_window_pizzeria_to_customer_and_customer_to_customer[4,5,1]:
