@@ -162,7 +162,7 @@ print(distances)
 
 # Buy some drones:
 K       = range(3)                 # number of drones
-drone   = UAV(10,10,180*60,1000)    # drone model
+drone   = UAV(20,10,180*60,1000)    # drone model
 
 
 
@@ -258,7 +258,7 @@ m.update()
 
 
 
-alpha     =   1   #How important are the customers?
+alpha     =   0   #How important are the customers?
 obj = LinExpr()
 
 for key in x:
@@ -268,6 +268,8 @@ for key in x:
         obj += alpha*x[key]*distances[key[0], key[1]]
 for i in P:
     obj += M*(tau[i]-e[i]) # minimise time delay vs expected arrival time at pizzeria
+for j in C:
+    obj += M*(tau[j]-c[j,1]) # minimise time delay vs expected arrival time at pizzeria
 
 
 # for j in chain(C, P):
