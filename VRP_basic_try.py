@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Just trying around the (basic) set of contrsints and some objective.
+Just trying around the (basic) set of constraints and some objective.
 
 Model architecture:
 
@@ -9,21 +9,10 @@ Model architecture:
     Capacity
     Limited endurance
 
-Objective: minimise the total lateness?
+Objective: minimise the total lateness and total distance
 
-@author: vladg
+@author:
 
-"""
-# -*- coding: utf-8 -*-
-"""
-Just trying around the (basic) set of contrsints and some objective.
-Model architecture:
-    K drones
-    Time window/delay for drone launch / land
-    Capacity
-    Limited endurance
-Objective: minimise the total lateness?
-@author: vladg
 """
 import numpy as np
 import pandas as pd
@@ -76,7 +65,12 @@ def getData():
     data_CC   = np.genfromtxt("client_1_client_2_distances.csv",skip_header=1,delimiter=',',dtype=int)
     data_PC   = np.genfromtxt("pizzerias_clients.csv",skip_header=1,delimiter=',',dtype=int)
 
-    e_tab     = np.genfromtxt("pizzeria_expected_arrival_time.csv",skip_header=1,delimiter=',',dtype=int)
+
+    # Timing data:
+    e_tab     = np.genfromtxt("pizzeria_expected_arrival_time.csv",skip_header=1, delimiter=',', dtype=int)
+    c_tab     = np.genfromtxt("customer_arrival_time.csv", skip_header=1, delimiter=',', dtype=int)
+
+
     # Data format: node1 lat,long, node2 lat,long , distance
 
     dist_AP = data_AP[:,4]
@@ -104,6 +98,8 @@ def getData():
     e[1:]   = e_tab[:,2]      # to stay consistent,
     # inidex 0 is the airbase which has no arrival time
 
+
+
     q                 = np.zeros((Dmax))   # each of them wants 2 pizzas
     q[Pmax: Dmax]     = 2
     """  !!! CHANGE HERE FOR NUMBER OF PIZZAS ORDERED!!!!"""
@@ -112,9 +108,21 @@ def getData():
     P = range( 1, Pmax + 1)  #number of pizzerias
     D = range( Dmax)  #total number of destinations
 
+
+    # Time at customers:
+
+    c         =  np.zeros( ( c_tab.shape[0] + C[0], c_tab.shape[1] ) )
+    c[C[0]:]  =  c_tab
+
     if len(e) != len(P)+1:
         print(len(e),len(P))
         print("Error in the Pizzeria files!\n")
+
+
+    if c.shape[0] != len(C):
+        print(c.shape[0],len(C))
+        print("Error in the Customer files!\n")
+
 
     # Assemble graph:
     # AP ,PC, CC, CA
@@ -126,7 +134,7 @@ def getData():
 
     for i in P:
         for j in C:
-            distances[i,j] = dist_PC[i - Pmax]
+            distances[i,j] = dist_PC[(i-P[0])*Cmax +j-C[0]]
 
     k = 0
     for i in C:
@@ -143,19 +151,18 @@ def getData():
     distances[:,0] = distances[0,:] # from i to 0
 
 
-    return P,C,D,e,q,coord_airbase,coord_clients,coord_pizzerias,distances
+    return P,C,D,e,c,q,coord_airbase,coord_clients,coord_pizzerias,distances
 
 
 
-P,C,D,e,q,coord_airbase,coord_clients,coord_pizzerias,distances = getData()
+P,C,D,e,c,q,coord_airbase,coord_clients,coord_pizzerias,distances = getData()
 
 print(distances)
 
 
 # Buy some drones:
-K       = range(3)               # number of drones
+K       = range(3)                 # number of drones
 drone   = UAV(10,10,180*60,1000)    # drone model
-
 
 
 
@@ -164,7 +171,8 @@ drone   = UAV(10,10,180*60,1000)    # drone model
 ### Create model
 m = gp.Model("VRP")
 
-#+++++++++++++++++++++++++++++ Decision variables +++++++++++++++++++++++++++++++++++++++++++++++++
+
+#+++++++++++++++++++++++++++++++ Decision variables +++++++++++++++++++++++++++++++++++++++++++++++++
 
 # Edge assignment to drone:
 x = {}
@@ -199,9 +207,12 @@ for j in C:
     tau[j] = m.addVar(vtype = GRB.INTEGER, name = 'tau')
 tau[0] = m.addVar(vtype = GRB.INTEGER, name = 'tau')
 
+
 m.update()
 
-#+++++++++++++++++++++++++++++++++ Constraints  ++++++++++++++++++++++++++++++++++++++++++++++++++
+
+#++++++++++++++++++++++++++++++++++ Constraints  ++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 # 1 Leave the luanch site (index 0):
 m.addConstrs((gp.quicksum(x[0,j,k] for j in P) == x_k[k]  for k in K), name = "Launch site")   # changed C to P
@@ -232,8 +243,18 @@ m.addConstrs(((tau[i] + distances[i,j]/drone.v - (1 - x[i,j,k]) * M) <= tau[j] f
 m.addConstrs((tau[i] <= drone.E - distances[i,0]/drone.v  for i in C), name = "Endurance1") # we need to change endurance constraint
 m.addConstr((tau[0] <= drone.E), name = "Endurance2")
 
+
+# 9 Arrival time at customer:
+m.addConstrs((c[i,0] - tau[i] <= 0 for i in C), name =" lower bound on customer ")
+m.addConstrs((c[i,1] - tau[i] >= 0 for i in C), name =" upper bound on customer ")
+
+
+
 m.update()
-# ++++++++++++++++++++++++++++ Objective +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+
+# ++++++++++++++++++++++++++++    Objective +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 
@@ -247,20 +268,22 @@ for key in x:
         obj += alpha*x[key]*distances[key[0], key[1]]
 for i in P:
     obj += M*(tau[i]-e[i]) # minimise time delay vs expected arrival time at pizzeria
-for j in chain(C, P):
-    obj += M*M*tau[j] # minimise arrival times( otherwise tau goes to upper bound)
+
+
+# for j in chain(C, P):
+#     obj += M*M*tau[j] # minimise arrival times( otherwise tau goes to upper bound)
 
 
 
 m.setObjective(obj, GRB.MINIMIZE)
-
-
 m.update()
 
 
+#+++++++++++++++++++++++++++++++++++ Solve Model +++++++++++++++++++++++++++++++++++++++++++++++++++
 m.write("VRP_basic.lp")
 
 
+# m.computeIIS()
 
 m.optimize()
 
@@ -314,6 +337,7 @@ def visualisation(print_tau):
                 x_coord = [coord_clients[int(var.varName[2]) - len(P) - 1][1],coord_airbase[1]]
                 ax.plot(x_coord, y_coord, colours[int(var.varName[6])], linewidth=2.5)
 
+
     # -----plotting the info about the airbase------
     ax.plot((coord_airbase[1]), (coord_airbase[0]), 'w*', markersize=12) #airbase as white star
 
@@ -341,14 +365,28 @@ def visualisation(print_tau):
         if (print_tau == True):
             ax.text((coord_clients[i,1]), (coord_clients[i,0])-0.002, r'$\tau$' + "=" + str(tau[i+1+len(P)].x), color='white', fontsize=8, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
 
-
+    plt.xlabel("Longitutde (" + u"\N{DEGREE SIGN}" + "E)")
+    plt.ylabel("Latitude (" + u"\N{DEGREE SIGN}" + "N)")
     plt.show()
 
 #Comment/uncomment the following line in order to hide/see the visualisation of the current solution
 visualisation(True)    #write True if you want to also plot the taus. Write False if you don't want the taus to be plotted
 
+def verify_cross_over(verify):
+    if verify==True:
+        distance_cross_over = distances[0, 1] + distances[1, 6] + distances[6, 5] + distances[5, 4] + distances[4, 0]
+        distance_no_cross_over = distances[0, 1] + distances[1, 5] + distances[5, 4] + distances[4, 6] + distances[6, 0]
 
+        print(distance_cross_over, distance_no_cross_over)
 
+        if distance_cross_over > distance_no_cross_over:
+            print("Cross over implies larger distance")
+        else:
+            print("Not crossing over implies larger distance")
+
+        print(distances)
+
+verify_cross_over(True)
 
 
 
