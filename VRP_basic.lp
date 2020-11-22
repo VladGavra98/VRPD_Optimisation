@@ -31,8 +31,7 @@ Minimize
    + 4737 x[5,0,0] + 4737 x[5,0,1] + 4737 x[5,0,2] + 4351 x[6,0,0]
    + 4351 x[6,0,1] + 4351 x[6,0,2] + 3634 x[7,0,0] + 3634 x[7,0,1]
    + 3634 x[7,0,2] + 3326 x[8,0,0] + 3326 x[8,0,1] + 3326 x[8,0,2]
-   + 1.000001e+12 tau + 1.000001e+12 tau + 1.000001e+12 tau + 1e+12 tau
-   + 1e+12 tau + 1e+12 tau + 1e+12 tau + 1e+12 tau - 3.6e+09 Constant
+   + 1e+06 tau + 1e+06 tau + 1e+06 tau - 2.1e+09 Constant
 Subject To
  Launch_site[0]: x[0,1,0] + x[0,2,0] + x[0,3,0] - x_k[0] = 0
  Launch_site[1]: x[0,1,1] + x[0,2,1] + x[0,3,1] - x_k[1] = 0
@@ -130,8 +129,8 @@ Subject To
  Leave_pizzeria[3,2]: - x[0,3,2] + x[3,4,2] + x[3,5,2] + x[3,6,2]
    + x[3,7,2] + x[3,8,2] = 0
  time_bound_on_pizzeria[1]: - tau <= -600
- time_bound_on_pizzeria[2]: - tau <= -1200
- time_bound_on_pizzeria[3]: - tau <= -1800
+ time_bound_on_pizzeria[2]: - tau <= -700
+ time_bound_on_pizzeria[3]: - tau <= -800
  Time_window_pizzeria[1,0]: 1e+06 x[0,1,0] - tau <= 999836
  Time_window_pizzeria[1,1]: 1e+06 x[0,1,1] - tau <= 999836
  Time_window_pizzeria[1,2]: 1e+06 x[0,1,2] - tau <= 999836
@@ -357,6 +356,16 @@ Subject To
  Endurance1[7]: tau <= 10436.6
  Endurance1[8]: tau <= 10467.4
  Endurance2: tau <= 10800
+ _lower_bound_on_customer_[4]: - tau <= -700
+ _lower_bound_on_customer_[5]: - tau <= -800
+ _lower_bound_on_customer_[6]: - tau <= -900
+ _lower_bound_on_customer_[7]: - tau <= -1000
+ _lower_bound_on_customer_[8]: - tau <= -1100
+ _upper_bound_on_customer_[4]: - tau >= -1300
+ _upper_bound_on_customer_[5]: - tau >= -1400
+ _upper_bound_on_customer_[6]: - tau >= -1500
+ _upper_bound_on_customer_[7]: - tau >= -1600
+ _upper_bound_on_customer_[8]: - tau >= -1700
 Bounds
  Constant = 1
 Binaries
