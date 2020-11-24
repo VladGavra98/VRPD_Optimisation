@@ -21,7 +21,7 @@ from copy import deepcopy
 import gurobipy as gp
 import time
 import os
-from itertools import chain
+from itertools import chain, combinations
 import matplotlib.pyplot as plt
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from statistics import mean
@@ -31,8 +31,6 @@ import matplotlib.text as mpl_text
 
 # consts.
 M = 1000000
-
-
 
 class UAV:
     """
@@ -46,9 +44,6 @@ class UAV:
         self.R = maxrange  # [m]
         self.E = endurance  #[s]
 
-
-
-
 # ++++++++++++++++++++++ Build data strcutures  +++++++++++++++++++++++++++++++++++++++++++++++++++
 
 # 1.  airbase - pizzerias   (directed)   <var_name>_AP
@@ -58,21 +53,17 @@ class UAV:
 
 
 def getData():
-
     # Load data:
     data_CA   = np.genfromtxt("client_airbase_distances.csv",skip_header=1,delimiter=',',dtype=int)
     data_AP   = np.genfromtxt("airbase_pizzerias_distances.csv",skip_header=1,delimiter=',',dtype=int)
     data_CC   = np.genfromtxt("client_1_client_2_distances.csv",skip_header=1,delimiter=',',dtype=int)
     data_PC   = np.genfromtxt("pizzerias_clients.csv",skip_header=1,delimiter=',',dtype=int)
 
-
     # Timing data:
     e_tab     = np.genfromtxt("pizzeria_expected_arrival_time.csv",skip_header=1, delimiter=',', dtype=int)
     c_tab     = np.genfromtxt("customer_arrival_time.csv", skip_header=1, delimiter=',', dtype=int)
 
-
     # Data format: node1 lat,long, node2 lat,long , distance
-
     dist_AP = data_AP[:,4]
     dist_PC = data_PC[:,4]
     dist_CC = data_CC[:,4]
@@ -92,14 +83,11 @@ def getData():
     Pmax = len(dist_AP)  #number of pizzerias
     Dmax = Cmax + Pmax + 1  #total number of destinations
 
-
     # Orders:  time and quanitity
     e       = np.zeros( ( len(e_tab[:,2]) + 1 ) )
     e[1:]   = e_tab[:,2]      # to stay consistent,
+
     # inidex 0 is the airbase which has no arrival time
-
-
-
     q                 = np.zeros((Dmax))   # each of them wants 2 pizzas
     q[Pmax: Dmax]     = 2
     """  !!! CHANGE HERE FOR NUMBER OF PIZZAS ORDERED!!!!"""
@@ -108,9 +96,7 @@ def getData():
     P = range( 1, Pmax + 1)  #number of pizzerias
     D = range( Dmax)  #total number of destinations
 
-
     # Time at customers:
-
     c         =  np.zeros( ( c_tab.shape[0] + C[0], c_tab.shape[1] ) )
     c[C[0]:]  =  c_tab
 
@@ -118,15 +104,12 @@ def getData():
         print(len(e),len(P))
         print("Error in the Pizzeria files!\n")
 
-
     if c.shape[0] != len(C):
         print(c.shape[0],len(C))
         print("Error in the Customer files!\n")
 
-
     # Assemble graph:
     # AP ,PC, CC, CA
-
     distances = np.zeros((Dmax,Dmax))
 
     for i in P:
@@ -142,17 +125,13 @@ def getData():
             if i!= j:
                 distances[i,j] = dist_CC[k]
                 distances[j,i] = dist_CC[k]
-
                 k+=1
 
     for i in C:
         distances[0,i] = dist_CA[i-Pmax-1]
-
     distances[:,0] = distances[0,:] # from i to 0
 
-
     return P,C,D,e,c,q,coord_airbase,coord_clients,coord_pizzerias,distances
-
 
 
 P,C,D,e,c,q,coord_airbase,coord_clients,coord_pizzerias,distances = getData()
@@ -163,9 +142,9 @@ print(distances)
 # Buy some drones:
 K       = range(3)                 # number of drones
 drone   = UAV(20,10,180*60,1000)    # drone model
+D       = 10                        # delay in seconds between drone launch / land
 
-
-
+print(c)
 
 
 ### Create model
@@ -199,14 +178,30 @@ for i in C:
 
 x_k = m.addVars(K, vtype = GRB.BINARY, name = "x_k")     #drone is active
 
-
+# Arrival times for each drone, for each customer and pizzeria
 tau = {}
-for i in P:
-    tau[i] = m.addVar(vtype = GRB.INTEGER, name = 'tau')
-for j in C:
-    tau[j] = m.addVar(vtype = GRB.INTEGER, name = 'tau')
-tau[0] = m.addVar(vtype = GRB.INTEGER, name = 'tau')
+for k in K:
+    for i in P:
+        tau[i,k] = m.addVar(vtype = GRB.CONTINUOUS, name = 'tau[%s,%s]'%(i, k))
+    for j in C:
+        tau[j,k] = m.addVar(vtype = GRB.CONTINUOUS, name = 'tau[%s,%s]'%(j, k))
 
+# Launch times for each drone
+launch = {}
+for k in K:
+    launch[k] = m.addVar(vtype = GRB.CONTINUOUS, name = 'launch[%s]'%(k))
+
+# Land time for each drone
+land = {}
+for k in K:
+    land[k] = m.addVar(vtype = GRB.CONTINUOUS, name = 'land[%s]'%(k))
+
+# Help binary variable for either-or constraint of launch times (y) and landing times (q)
+y = {}
+q = {}
+for combi in combinations(K, 2):
+    y[combi] = m.addVar(vtype = GRB.BINARY, name = 'y[%s,%s]'%(combi[0], combi[1]))
+    q[combi] = m.addVar(vtype = GRB.BINARY, name = 'q[%s,%s]'%(combi[0], combi[1]))
 
 m.update()
 
@@ -231,23 +226,33 @@ m.addConstrs((gp.quicksum(x[j,i,k] for j in chain(P, C) if i!=j) == gp.quicksum(
 m.addConstrs((gp.quicksum(x[j,i,k] for i in C) == gp.quicksum(x[i,j,k] for i in [0]) for j in P for k in K), name = "Leave pizzeria")
 
 # 6 Lower bound on arrival time:
-m.addConstrs((e[i] - tau[i] <= 0 for i in P), name ="time bound on pizzeria")
+m.addConstrs((e[i] - tau[i,k] - (1 - x[0,i,k]) * M <= 0 for i in P for k in K), name ="time bound on pizzeria")
 
 # 7 Time window for arriving at pizzeria:
-m.addConstrs(((0 + distances[0,j]/drone.v - (1 - x[0,j,k]) * M)  <= tau[j] for j in P for k in K), name = "Time window pizzeria")   # the first 0 might change later if drones leave at differetn times
-
-m.addConstrs(((tau[i] + distances[i,j]/drone.v - (1 - x[i,j,k]) * M) <= tau[j] for i in chain(P, C) for j in C for k in K if i!=j), name = "Time window pizzeria to customer and customer to customer")
+m.addConstrs(((0 + distances[0,j]/drone.v - (1 - x[0,j,k]) * M)  <= tau[j,k] for j in P for k in K), name = "Time window pizzeria")   # the first 0 might change later if drones leave at differetn times
+m.addConstrs(((tau[i,k] + distances[i,j]/drone.v - (1 - x[i,j,k]) * M) <= tau[j,k] for i in chain(P, C) for j in C for k in K if i!=j), name = "Time window pizzeria to customer and customer to customer")
 # tau[j] has no upper bound except for endurance
 
-# # 8 Endurance constraints
-m.addConstrs((tau[i] <= drone.E - distances[i,0]/drone.v  for i in C), name = "Endurance1") # we need to change endurance constraint
-m.addConstr((tau[0] <= drone.E), name = "Endurance2")
+# 8 Arrival time at customer:
+m.addConstrs((c[i,0] - tau[i,k] - (1 - x[j,i,k]) * M <= 0 for i in C for j in chain(P, C) for k in K if i!=j), name = "lower bound on customer ")
+m.addConstrs((c[i,1] - tau[i,k] + (1- x[j,i,k]) * M >= 0 for i in C for j in chain(P, C) for k in K if i!=j), name = "upper bound on customer ")
 
+# 9 Launch time
+m.addConstrs((gp.quicksum((tau[i,k] - distances[0,i]/drone.v)*x[0,i,k] for i in P) >= launch[k] for k in K), name = "launch time")
 
-# 9 Arrival time at customer:
-m.addConstrs((c[i,0] - tau[i] <= 0 for i in C), name =" lower bound on customer ")
-m.addConstrs((c[i,1] - tau[i] >= 0 for i in C), name =" upper bound on customer ")
+# 10 Landing time
+m.addConstrs((gp.quicksum((tau[i,k] + distances[i,0]/drone.v)*x[i,0,k] for i in C) <= land[k] for k in K), name = "land time")
 
+# 11 Either - or delay constraint for launch time
+m.addConstrs(( launch[k] + D*x_k[m]*x_k[k] <= launch[m] + M * y[k,m] for k,m in combinations(K, 2)), name = "either launch time of drone m is D time after launch time of drone k")
+m.addConstrs(( launch[k] + D*x_k[m]*x_k[k] <= launch[m] + M * (1 - y[k,m]) for k,m in combinations(K, 2)), name = "or launch time of drone k is D time after launch time of drone m")
+
+# 12 Either - or delay constraint for land time
+m.addConstrs(( land[k] + D*x_k[m]*x_k[k] <= land[m] + M * q[k,m] for k,m in combinations(K, 2)), name = "either land time of drone m is D time after land time of drone k")
+m.addConstrs(( land[k] + D*x_k[m]*x_k[k] <= land[m] + M * (1 - q[k,m]) for k,m in combinations(K, 2)), name = "or land time of drone k is D time after land time of drone m")
+
+# 13 Max endurance
+m.addConstrs(( land[k] - launch[k] <= drone.E for k in K), name = "max endurance of drone")
 
 
 m.update()
@@ -266,14 +271,14 @@ for key in x:
     if key[0] in P or key[0] in C:
         #part of objective function related to distance from pizzeria to customer and customer to customer
         obj += alpha*x[key]*distances[key[0], key[1]]
+for k in K:
+    obj += M*(land[k]-launch[k]) # minimise time in air, dont stay in air if unnecessary
 for i in P:
-    obj += M*(tau[i]-e[i]) # minimise time delay vs expected arrival time at pizzeria
+    for k in K:
+        obj += M*M*(tau[i,k]-e[i]) # minimise time delay vs expected arrival time at pizzeria
 for j in C:
-    obj += M*(tau[j]-c[j,1]) # minimise time delay vs expected arrival time at pizzeria
-
-
-# for j in chain(C, P):
-#     obj += M*M*tau[j] # minimise arrival times( otherwise tau goes to upper bound)
+    for k in K:
+        obj += M*M*(tau[j,k]-c[j,0]) # minimise time delay vs expected arrival time at pizzeria
 
 
 
