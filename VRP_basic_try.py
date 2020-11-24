@@ -263,7 +263,7 @@ m.update()
 
 
 
-alpha     =   1   #How important are the customers?
+alpha     =   0   #How important are the customers?
 obj = LinExpr()
 
 for key in x:
@@ -279,9 +279,6 @@ for i in P:
 for j in C:
     for k in K:
         obj += M*M*(tau[j,k]-c[j,0]) # minimise time delay vs expected arrival time at pizzeria
-
-# for j in chain(C, P):
-#     obj += M*M*tau[j] # minimise arrival times( otherwise tau goes to upper bound)
 
 
 
