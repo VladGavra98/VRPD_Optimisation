@@ -30,7 +30,7 @@ import matplotlib.text as mpl_text
 
 
 # consts.
-M = 1000000
+M = 100000
 
 class UAV:
     """
@@ -141,8 +141,8 @@ print(distances)
 
 # Buy some drones:
 K       = range(3)                 # number of drones
-drone   = UAV(20,10,180*60,1000)    # drone model
-D       = 10                       # delay in seconds between drone launch / land
+drone   = UAV(10,10,180*60,1000)    # drone model
+delay       = 30                       # delay in seconds between drone launch / land
 
 print(c)
 
@@ -244,12 +244,12 @@ m.addConstrs((gp.quicksum((tau[i,k] - distances[0,i]/drone.v)*x[0,i,k] for i in 
 m.addConstrs((gp.quicksum((tau[i,k] + distances[i,0]/drone.v)*x[i,0,k] for i in C) <= land[k] for k in K), name = "land time")
 
 # 11 Either - or delay constraint for launch time
-m.addConstrs(( launch[k] + D*x_k[m]*x_k[k] <= launch[m] + M * y_1[k,m] for k,m in combinations(K, 2)), name = "either launch time of drone m is D time after launch time of drone k")
-m.addConstrs(( launch[k] + D*x_k[m]*x_k[k] <= launch[m] + M * (1 - y_1[k,m]) for k,m in combinations(K, 2)), name = "or launch time of drone k is D time after launch time of drone m")
+m.addConstrs(( launch[k] + delay*x_k[m]*x_k[k] <= launch[m] + M * y_1[k,m] for k,m in combinations(K, 2)), name = "either launch time of drone m is D time after launch time of drone k")
+m.addConstrs(( launch[k] + delay*x_k[m]*x_k[k] <= launch[m] + M * (1 - y_1[k,m]) for k,m in combinations(K, 2)), name = "or launch time of drone k is D time after launch time of drone m")
 
 # 12 Either - or delay constraint for land time
-m.addConstrs(( land[k] + D*x_k[m]*x_k[k] <= land[m] + M * y_2[k,m] for k,m in combinations(K, 2)), name = "either land time of drone m is D time after land time of drone k")
-m.addConstrs(( land[k] + D*x_k[m]*x_k[k] <= land[m] + M * (1 - y_2[k,m]) for k,m in combinations(K, 2)), name = "or land time of drone k is D time after land time of drone m")
+m.addConstrs(( land[k] + delay*x_k[m]*x_k[k] <= land[m] + M * y_2[k,m] for k,m in combinations(K, 2)), name = "either land time of drone m is D time after land time of drone k")
+m.addConstrs(( land[k] + delay*x_k[m]*x_k[k] <= land[m] + M * (1 - y_2[k,m]) for k,m in combinations(K, 2)), name = "or land time of drone k is D time after land time of drone m")
 
 # 13 Max endurance
 m.addConstrs(( land[k] - launch[k] <= drone.E for k in K), name = "max endurance of drone")
@@ -267,25 +267,33 @@ m.update()
 
 
 alpha     =   0   #How important are the customers?
-obj = LinExpr()
-
+obj1 = LinExpr()
 for key in x:
-    obj += (1-alpha)*x[key]*distances[key[0], key[1]] #part of objective function related to total distance
+    obj1 += (1-alpha)*x[key]*distances[key[0], key[1]] #part of objective function related to total distance
     if key[0] in P or key[0] in C:
         #part of objective function related to distance from pizzeria to customer and customer to customer
-        obj += alpha*x[key]*distances[key[0], key[1]]
+        obj1 += alpha*x[key]*distances[key[0], key[1]]
+
+m.setObjectiveN(obj1, 0, 2)
+
+obj3 = LinExpr()
 for k in K:
-    obj += M*(land[k]-launch[k]) # minimise time in air, dont stay in air if unnecessary
+    obj3 += (land[k]-launch[k]) # minimise time in air, dont stay in air if unnecessary
+
+m.setObjectiveN(obj3, 1, 1)
+
+obj4 = LinExpr()
 for i in P:
     for k in K:
-        obj += M*M*(tau[i,k]-e[i]) # minimise time delay vs expected arrival time at pizzeria
+        obj4 += (tau[i,k]-e[i]) # minimise time delay vs expected arrival time at pizzeria
 for j in C:
     for k in K:
-        obj += M*M*(tau[j,k]-c[j,0]) # minimise time delay vs expected arrival time at pizzeria
+        obj4 += (tau[j,k]-c[j,0]) # minimise time delay vs expected arrival time at pizzeria
 
+m.setObjectiveN(obj4, 2, 0)
 
+m.ModelSense = GRB.MINIMIZE
 
-m.setObjective(obj, GRB.MINIMIZE)
 m.update()
 
 
@@ -301,10 +309,21 @@ m.optimize()
 status = m.Status
 
 # ++++++++++++++++++++++++++++++ Printing & Visualisation ++++++++++++++++++++++++++++++++++++++++++
+totalDistance = 0
+for var in m.getVars():
+    if round(var.x) != 0 and var.varName[0] == "x" and var.varName[1] == "[":
+        totalDistance += distances[int(var.varName[2]),int(var.varName[4])]
+print("Total distance is: ", totalDistance)
+
+nObjectives = m.NumObj
+for i in range(nObjectives):
+    m.params.ObjNumber = i
+    print("Objective "+str(i)+" value: "+str(m.ObjNVal))
 
 for var in m.getVars():
     if var.x:
         print('%s %f' % (var.varName,var.x))
+
 
 
 def visualisation(print_tau):
@@ -312,12 +331,13 @@ def visualisation(print_tau):
     imData = plt.imread("map_first_try_basic_model.JPG") #first we are plotting the background image
 
     fig, ax = plt.subplots()
+    ax.set_title("Objective: " + str(round(m.objVal)))
     ax.imshow(imData, extent=[4.3458, 4.3954, 51.98554, 52.02264]) #setting the corners of our plot; these points work for well for the initial dataset
 
     colours=["r","b","c"] #the route of the first drone will be shown in red, of the second one in blue and of the third one in cyan
 
     for var in m.getVars():
-        if var.x and var.varName[0]=="x" and var.varName[1]=="[": #for plotting, we are interested in the x[i,j,k] variables
+        if round(var.x) != 0 and var.varName[0]=="x" and var.varName[1]=="[": #for plotting, we are interested in the x[i,j,k] variables
 
             if var.varName[2]=="0": #scenario 1: we are at the airbase, going to the pizzerias
                 y_coord=[coord_airbase[0],coord_pizzerias[int(var.varName[4])-1][0]] #the y_coord is the lattitude (North)
@@ -362,7 +382,7 @@ def visualisation(print_tau):
                 bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
         if (print_tau == True):
             for j in K:
-                if tau[i+1,j].x:
+                if round(tau[i+1,j].x) != 0:
                     ax.text((coord_pizzerias[i,1]), (coord_pizzerias[i,0])-0.002, r'$\tau$' + "=" + str(round(tau[i+1,j].x,1)), color='white', fontsize=8, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
 
 
@@ -374,7 +394,7 @@ def visualisation(print_tau):
                 bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
         if (print_tau == True):
             for j in K:
-                if tau[i+1+len(P),j].x:
+                if round(tau[i+1+len(P),j].x) != 0:
                     ax.text((coord_clients[i,1]), (coord_clients[i,0])-0.002, r'$\tau$' + "=" + str(round(tau[i+1+len(P),j].x,1)), color='white', fontsize=8, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
 
     plt.xlabel("Longitutde (" + u"\N{DEGREE SIGN}" + "E)")
