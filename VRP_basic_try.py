@@ -349,8 +349,6 @@ def visualisation(print_tau):
     ax.plot((coord_airbase[1]), (coord_airbase[0]), 'w*', markersize=12) #airbase as white star
 
     ax.text((coord_airbase[1]), (coord_airbase[0])-0.001, 'Airbase', color='white', fontsize=10, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
-    if (print_tau == True):
-        ax.text((coord_airbase[1]), (coord_airbase[0])-0.002, r'$\tau$' + "=" + str(tau[0].x), color='white', fontsize=8, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
 
 
     # -----plotting the info about the pizzerias------
@@ -360,7 +358,9 @@ def visualisation(print_tau):
         ax.text((coord_pizzerias[i,1]), (coord_pizzerias[i,0]) - 0.001, str(i+1), color='white', fontsize=10,
                 bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
         if (print_tau == True):
-            ax.text((coord_pizzerias[i,1]), (coord_pizzerias[i,0])-0.002, r'$\tau$' + "=" + str(tau[i+1].x), color='white', fontsize=8, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
+            for j in K:
+                if tau[i+1,j].x:
+                    ax.text((coord_pizzerias[i,1]), (coord_pizzerias[i,0])-0.002, r'$\tau$' + "=" + str(round(tau[i+1,j].x,1)), color='white', fontsize=8, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
 
 
     # -----plotting the info about the clients------
@@ -370,14 +370,20 @@ def visualisation(print_tau):
         ax.text((coord_clients[i,1]), (coord_clients[i,0]) - 0.001, str(i+1+len(P)), color='white', fontsize=10,
                 bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
         if (print_tau == True):
-            ax.text((coord_clients[i,1]), (coord_clients[i,0])-0.002, r'$\tau$' + "=" + str(tau[i+1+len(P)].x), color='white', fontsize=8, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
+            for j in K:
+                if tau[i+1+len(P),j].x:
+                    ax.text((coord_clients[i,1]), (coord_clients[i,0])-0.002, r'$\tau$' + "=" + str(round(tau[i+1+len(P),j].x,1)), color='white', fontsize=8, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
 
     plt.xlabel("Longitutde (" + u"\N{DEGREE SIGN}" + "E)")
     plt.ylabel("Latitude (" + u"\N{DEGREE SIGN}" + "N)")
     plt.show()
 
+
 #Comment/uncomment the following line in order to hide/see the visualisation of the current solution
 visualisation(True)    #write True if you want to also plot the taus. Write False if you don't want the taus to be plotted
+
+
+# ++++++++++++++++++++++++++++++ Verifying cross-over ++++++++++++++++++++++++++++++++++++++++++
 
 def verify_cross_over(verify):
     if verify==True:
@@ -393,8 +399,7 @@ def verify_cross_over(verify):
 
         print(distances)
 
-verify_cross_over(True)
-
+verify_cross_over(False)
 
 
 
