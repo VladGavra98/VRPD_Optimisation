@@ -254,6 +254,9 @@ m.addConstrs(( land[k] + D*x_k[m]*x_k[k] <= land[m] + M * (1 - q[k,m]) for k,m i
 # 13 Max endurance
 m.addConstrs(( land[k] - launch[k] <= drone.E for k in K), name = "max endurance of drone")
 
+# 14 Capacity constriants
+m.addConstrs((gp.quicksum(q[j] * x[i,j,k] for i in C for j in C if i!=j) + (gp.quicksum(q[j] * x[i,j,k] for j in C) ) <= drone.q for k in K for i in P), name = "Capacity")
+
 
 m.update()
 
