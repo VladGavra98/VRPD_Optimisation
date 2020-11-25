@@ -142,7 +142,7 @@ print(distances)
 # Buy some drones:
 K       = range(3)                 # number of drones
 drone   = UAV(20,10,180*60,1000)    # drone model
-D       = 10                        # delay in seconds between drone launch / land
+D       = 10                       # delay in seconds between drone launch / land
 
 print(c)
 
@@ -197,11 +197,11 @@ for k in K:
     land[k] = m.addVar(vtype = GRB.CONTINUOUS, name = 'land[%s]'%(k))
 
 # Help binary variable for either-or constraint of launch times (y) and landing times (q)
-y = {}
-q = {}
+y_1 = {}
+y_2 = {}
 for combi in combinations(K, 2):
-    y[combi] = m.addVar(vtype = GRB.BINARY, name = 'y[%s,%s]'%(combi[0], combi[1]))
-    q[combi] = m.addVar(vtype = GRB.BINARY, name = 'q[%s,%s]'%(combi[0], combi[1]))
+    y_1[combi] = m.addVar(vtype = GRB.BINARY, name = 'y_1[%s,%s]'%(combi[0], combi[1]))
+    y_2[combi] = m.addVar(vtype = GRB.BINARY, name = 'y_2[%s,%s]'%(combi[0], combi[1]))
 
 m.update()
 
@@ -244,12 +244,12 @@ m.addConstrs((gp.quicksum((tau[i,k] - distances[0,i]/drone.v)*x[0,i,k] for i in 
 m.addConstrs((gp.quicksum((tau[i,k] + distances[i,0]/drone.v)*x[i,0,k] for i in C) <= land[k] for k in K), name = "land time")
 
 # 11 Either - or delay constraint for launch time
-m.addConstrs(( launch[k] + D*x_k[m]*x_k[k] <= launch[m] + M * y[k,m] for k,m in combinations(K, 2)), name = "either launch time of drone m is D time after launch time of drone k")
-m.addConstrs(( launch[k] + D*x_k[m]*x_k[k] <= launch[m] + M * (1 - y[k,m]) for k,m in combinations(K, 2)), name = "or launch time of drone k is D time after launch time of drone m")
+m.addConstrs(( launch[k] + D*x_k[m]*x_k[k] <= launch[m] + M * y_1[k,m] for k,m in combinations(K, 2)), name = "either launch time of drone m is D time after launch time of drone k")
+m.addConstrs(( launch[k] + D*x_k[m]*x_k[k] <= launch[m] + M * (1 - y_1[k,m]) for k,m in combinations(K, 2)), name = "or launch time of drone k is D time after launch time of drone m")
 
 # 12 Either - or delay constraint for land time
-m.addConstrs(( land[k] + D*x_k[m]*x_k[k] <= land[m] + M * q[k,m] for k,m in combinations(K, 2)), name = "either land time of drone m is D time after land time of drone k")
-m.addConstrs(( land[k] + D*x_k[m]*x_k[k] <= land[m] + M * (1 - q[k,m]) for k,m in combinations(K, 2)), name = "or land time of drone k is D time after land time of drone m")
+m.addConstrs(( land[k] + D*x_k[m]*x_k[k] <= land[m] + M * y_2[k,m] for k,m in combinations(K, 2)), name = "either land time of drone m is D time after land time of drone k")
+m.addConstrs(( land[k] + D*x_k[m]*x_k[k] <= land[m] + M * (1 - y_2[k,m]) for k,m in combinations(K, 2)), name = "or land time of drone k is D time after land time of drone m")
 
 # 13 Max endurance
 m.addConstrs(( land[k] - launch[k] <= drone.E for k in K), name = "max endurance of drone")
