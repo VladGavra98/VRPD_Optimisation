@@ -54,14 +54,14 @@ class UAV:
 
 def getData():
     # Load data:
-    data_CA   = np.genfromtxt("client_airbase_distances.csv",skip_header=1,delimiter=',',dtype=int)
-    data_AP   = np.genfromtxt("airbase_pizzerias_distances.csv",skip_header=1,delimiter=',',dtype=int)
-    data_CC   = np.genfromtxt("client_1_client_2_distances.csv",skip_header=1,delimiter=',',dtype=int)
-    data_PC   = np.genfromtxt("pizzerias_clients.csv",skip_header=1,delimiter=',',dtype=int)
+    data_CA   = np.genfromtxt("client_airbase_distances_complex.csv",skip_header=1,delimiter=',',dtype=int)
+    data_AP   = np.genfromtxt("airbase_pizzerias_distances_complex.csv",skip_header=1,delimiter=',',dtype=int)
+    data_CC   = np.genfromtxt("client_1_client_2_distances_complex.csv",skip_header=1,delimiter=',',dtype=int)
+    data_PC   = np.genfromtxt("pizzerias_clients_complex.csv",skip_header=1,delimiter=',',dtype=int)
 
     # Timing data:
-    e_tab     = np.genfromtxt("pizzeria_expected_arrival_time.csv",skip_header=1, delimiter=',', dtype=int)
-    c_tab     = np.genfromtxt("customer_arrival_time.csv", skip_header=1, delimiter=',', dtype=int)
+    e_tab     = np.genfromtxt("pizzeria_expected_arrival_time_complex.csv",skip_header=1, delimiter=',', dtype=int)
+    c_tab     = np.genfromtxt("customer_arrival_time_complex.csv", skip_header=1, delimiter=',', dtype=int)
 
     # Data format: node1 lat,long, node2 lat,long , distance
     dist_AP = data_AP[:,4]
@@ -70,8 +70,8 @@ def getData():
     dist_CA = data_CA[:,4]
 
     # Load data for visualisation purposes (extracting the coordinates):
-    data_CA_vis = np.genfromtxt("client_airbase_distances.csv", skip_header=1, delimiter=',')
-    data_AP_vis = np.genfromtxt("airbase_pizzerias_distances.csv", skip_header=1, delimiter=',')
+    data_CA_vis = np.genfromtxt("client_airbase_distances_complex.csv", skip_header=1, delimiter=',')
+    data_AP_vis = np.genfromtxt("airbase_pizzerias_distances_complex.csv", skip_header=1, delimiter=',')
 
     # saving the coordinates of the different destinations for visualisation purposes
     coord_airbase = data_AP_vis[0, 0:2]  # coordinates of the airbase
@@ -312,7 +312,8 @@ status = m.Status
 totalDistance = 0
 for var in m.getVars():
     if round(var.x) != 0 and var.varName[0] == "x" and var.varName[1] == "[":
-        totalDistance += distances[int(var.varName[2]),int(var.varName[4])]
+        name_of_variable = var.varName[2:-1].split(",")
+        totalDistance += distances[int(name_of_variable[0]), int(name_of_variable[1])]
 print("Total distance is: ", totalDistance)
 
 nObjectives = m.NumObj
@@ -338,34 +339,34 @@ def visualisation(print_tau):
 
     for var in m.getVars():
         if round(var.x) != 0 and var.varName[0]=="x" and var.varName[1]=="[": #for plotting, we are interested in the x[i,j,k] variables
-
-            if var.varName[2]=="0": #scenario 1: we are at the airbase, going to the pizzerias
-                y_coord=[coord_airbase[0],coord_pizzerias[int(var.varName[4])-1][0]] #the y_coord is the lattitude (North)
-                x_coord=[coord_airbase[1],coord_pizzerias[int(var.varName[4])-1][1]] #the x_coord is the longitude (East)
-                ax.plot(x_coord, y_coord, colours[int(var.varName[6])], linewidth=2.5)
+            name_of_variable_1 = var.varName[2:-1].split(",")
+            if name_of_variable_1[0]=="0": #scenario 1: we are at the airbase, going to the pizzerias
+                y_coord=[coord_airbase[0],coord_pizzerias[int(name_of_variable_1[1])-1][0]] #the y_coord is the lattitude (North)
+                x_coord=[coord_airbase[1],coord_pizzerias[int(name_of_variable_1[1])-1][1]] #the x_coord is the longitude (East)
+                ax.plot(x_coord, y_coord, colours[int(name_of_variable_1[2])], linewidth=2.5)
 
                 # ---- plotting the drone icons ----
                 arr_drone = mpimg.imread("Drone_white_icon.png")
                 imagebox = OffsetImage(arr_drone, zoom=0.04)
                 ab = AnnotationBbox(imagebox, (mean(x_coord), mean(y_coord)), frameon=False)
                 ax.add_artist(ab)
-                ax.add_artist(mpl_text.Text(x=mean(x_coord), y=mean(y_coord), text=str(var.varName[6]), weight="bold", color='black', fontsize=9, verticalalignment='center',horizontalalignment='center'))
+                ax.add_artist(mpl_text.Text(x=mean(x_coord), y=mean(y_coord), text=str(name_of_variable_1[2]), weight="bold", color='black', fontsize=9, verticalalignment='center',horizontalalignment='center'))
 
 
-            if int(var.varName[2])>0 and int(var.varName[2])<=len(P): #scenario 2: we are at a pizzeria, going to a customer
-                y_coord=[coord_pizzerias[int(var.varName[2])-1][0], coord_clients[int(var.varName[4])-len(P)-1][0]]
-                x_coord=[coord_pizzerias[int(var.varName[2])-1][1], coord_clients[int(var.varName[4])-len(P)-1][1]]
-                ax.plot(x_coord, y_coord, colours[int(var.varName[6])], linewidth=2.5)
+            if int(name_of_variable_1[0])>0 and int(name_of_variable_1[0])<=len(P): #scenario 2: we are at a pizzeria, going to a customer
+                y_coord=[coord_pizzerias[int(name_of_variable_1[0])-1][0], coord_clients[int(name_of_variable_1[1])-len(P)-1][0]]
+                x_coord=[coord_pizzerias[int(name_of_variable_1[0])-1][1], coord_clients[int(name_of_variable_1[1])-len(P)-1][1]]
+                ax.plot(x_coord, y_coord, colours[int(name_of_variable_1[2])], linewidth=2.5)
 
-            if int(var.varName[2])>len(P) and int(var.varName[4])>len(P): #scenario 3: we are at a customer, going to another customer
-                y_coord = [coord_clients[int(var.varName[2])-len(P)-1][0], coord_clients[int(var.varName[4])-len(P)- 1][0]]
-                x_coord = [coord_clients[int(var.varName[2])-len(P)-1][1], coord_clients[int(var.varName[4])-len(P)- 1][1]]
-                ax.plot(x_coord, y_coord, colours[int(var.varName[6])], linewidth=2.5)
+            if int(name_of_variable_1[0])>len(P) and int(name_of_variable_1[1])>len(P): #scenario 3: we are at a customer, going to another customer
+                y_coord = [coord_clients[int(name_of_variable_1[0])-len(P)-1][0], coord_clients[int(name_of_variable_1[1])-len(P)- 1][0]]
+                x_coord = [coord_clients[int(name_of_variable_1[0])-len(P)-1][1], coord_clients[int(name_of_variable_1[1])-len(P)- 1][1]]
+                ax.plot(x_coord, y_coord, colours[int(name_of_variable_1[2])], linewidth=2.5)
 
-            if int(var.varName[2])>len(P) and int(var.varName[4])==0: #scenario 4: we are at a customer, going back to the airbase
-                y_coord = [coord_clients[int(var.varName[2]) - len(P) - 1][0],coord_airbase[0]]
-                x_coord = [coord_clients[int(var.varName[2]) - len(P) - 1][1],coord_airbase[1]]
-                ax.plot(x_coord, y_coord, colours[int(var.varName[6])], linewidth=2.5)
+            if int(name_of_variable_1[0])>len(P) and int(name_of_variable_1[1])==0: #scenario 4: we are at a customer, going back to the airbase
+                y_coord = [coord_clients[int(name_of_variable_1[0]) - len(P) - 1][0],coord_airbase[0]]
+                x_coord = [coord_clients[int(name_of_variable_1[0]) - len(P) - 1][1],coord_airbase[1]]
+                ax.plot(x_coord, y_coord, colours[int(name_of_variable_1[2])], linewidth=2.5)
 
 
     # -----plotting the info about the airbase------
