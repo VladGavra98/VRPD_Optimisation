@@ -40,6 +40,7 @@ customer_arrival_time= np.array([(700, 1300), (700, 1400), (700,1500),
                                  (900, 1900), (950, 1500), (950, 1800),
                                  (950, 1780), (950, 1860), (1000, 1450),
                                  (1000,1900), (1000, 1700), (1000, 1890)])
+
 #++++++++++++++++++ Generating the "client_1_to_client_2_distances" file ++++++++++++++++++++++++
 
 myData_client_1_client_2_distances = [['latitude_client_1','longitude_client_1','latitude_client_2','longitude_client_2','distance']]

@@ -30,7 +30,7 @@ import matplotlib.text as mpl_text
 
 
 # consts.
-M = 1000000
+M = 100000
 
 class UAV:
     """
@@ -54,14 +54,14 @@ class UAV:
 
 def getData():
     # Load data:
-    data_CA   = np.genfromtxt("client_airbase_distances.csv",skip_header=1,delimiter=',',dtype=int)
-    data_AP   = np.genfromtxt("airbase_pizzerias_distances.csv",skip_header=1,delimiter=',',dtype=int)
-    data_CC   = np.genfromtxt("client_1_client_2_distances.csv",skip_header=1,delimiter=',',dtype=int)
-    data_PC   = np.genfromtxt("pizzerias_clients.csv",skip_header=1,delimiter=',',dtype=int)
+    data_CA   = np.genfromtxt("client_airbase_distances_complex.csv",skip_header=1,delimiter=',',dtype=int)
+    data_AP   = np.genfromtxt("airbase_pizzerias_distances_complex.csv",skip_header=1,delimiter=',',dtype=int)
+    data_CC   = np.genfromtxt("client_1_client_2_distances_complex.csv",skip_header=1,delimiter=',',dtype=int)
+    data_PC   = np.genfromtxt("pizzerias_clients_complex.csv",skip_header=1,delimiter=',',dtype=int)
 
     # Timing data:
-    e_tab     = np.genfromtxt("pizzeria_expected_arrival_time.csv",skip_header=1, delimiter=',', dtype=int)
-    c_tab     = np.genfromtxt("customer_arrival_time.csv", skip_header=1, delimiter=',', dtype=int)
+    e_tab     = np.genfromtxt("pizzeria_expected_arrival_time_complex.csv",skip_header=1, delimiter=',', dtype=int)
+    c_tab     = np.genfromtxt("customer_arrival_time_complex.csv", skip_header=1, delimiter=',', dtype=int)
 
     # Data format: node1 lat,long, node2 lat,long , distance
     dist_AP = data_AP[:,4]
@@ -70,8 +70,8 @@ def getData():
     dist_CA = data_CA[:,4]
 
     # Load data for visualisation purposes (extracting the coordinates):
-    data_CA_vis = np.genfromtxt("client_airbase_distances.csv", skip_header=1, delimiter=',')
-    data_AP_vis = np.genfromtxt("airbase_pizzerias_distances.csv", skip_header=1, delimiter=',')
+    data_CA_vis = np.genfromtxt("client_airbase_distances_complex.csv", skip_header=1, delimiter=',')
+    data_AP_vis = np.genfromtxt("airbase_pizzerias_distances_complex.csv", skip_header=1, delimiter=',')
 
     # saving the coordinates of the different destinations for visualisation purposes
     coord_airbase = data_AP_vis[0, 0:2]  # coordinates of the airbase
@@ -141,8 +141,8 @@ print(distances)
 
 # Buy some drones:
 K       = range(3)                 # number of drones
-drone   = UAV(20,10,180*60,1000)    # drone model
-D       = 10                        # delay in seconds between drone launch / land
+drone   = UAV(10,10,180*60,1000)    # drone model
+delay       = 30                       # delay in seconds between drone launch / land
 
 print(c)
 
@@ -197,11 +197,11 @@ for k in K:
     land[k] = m.addVar(vtype = GRB.CONTINUOUS, name = 'land[%s]'%(k))
 
 # Help binary variable for either-or constraint of launch times (y) and landing times (q)
-y = {}
-q = {}
+y_1 = {}
+y_2 = {}
 for combi in combinations(K, 2):
-    y[combi] = m.addVar(vtype = GRB.BINARY, name = 'y[%s,%s]'%(combi[0], combi[1]))
-    q[combi] = m.addVar(vtype = GRB.BINARY, name = 'q[%s,%s]'%(combi[0], combi[1]))
+    y_1[combi] = m.addVar(vtype = GRB.BINARY, name = 'y_1[%s,%s]'%(combi[0], combi[1]))
+    y_2[combi] = m.addVar(vtype = GRB.BINARY, name = 'y_2[%s,%s]'%(combi[0], combi[1]))
 
 m.update()
 
@@ -244,15 +244,18 @@ m.addConstrs((gp.quicksum((tau[i,k] - distances[0,i]/drone.v)*x[0,i,k] for i in 
 m.addConstrs((gp.quicksum((tau[i,k] + distances[i,0]/drone.v)*x[i,0,k] for i in C) <= land[k] for k in K), name = "land time")
 
 # 11 Either - or delay constraint for launch time
-m.addConstrs(( launch[k] + D*x_k[m]*x_k[k] <= launch[m] + M * y[k,m] for k,m in combinations(K, 2)), name = "either launch time of drone m is D time after launch time of drone k")
-m.addConstrs(( launch[k] + D*x_k[m]*x_k[k] <= launch[m] + M * (1 - y[k,m]) for k,m in combinations(K, 2)), name = "or launch time of drone k is D time after launch time of drone m")
+m.addConstrs(( launch[k] + delay*x_k[m]*x_k[k] <= launch[m] + M * y_1[k,m] for k,m in combinations(K, 2)), name = "either launch time of drone m is D time after launch time of drone k")
+m.addConstrs(( launch[k] + delay*x_k[m]*x_k[k] <= launch[m] + M * (1 - y_1[k,m]) for k,m in combinations(K, 2)), name = "or launch time of drone k is D time after launch time of drone m")
 
 # 12 Either - or delay constraint for land time
-m.addConstrs(( land[k] + D*x_k[m]*x_k[k] <= land[m] + M * q[k,m] for k,m in combinations(K, 2)), name = "either land time of drone m is D time after land time of drone k")
-m.addConstrs(( land[k] + D*x_k[m]*x_k[k] <= land[m] + M * (1 - q[k,m]) for k,m in combinations(K, 2)), name = "or land time of drone k is D time after land time of drone m")
+m.addConstrs(( land[k] + delay*x_k[m]*x_k[k] <= land[m] + M * y_2[k,m] for k,m in combinations(K, 2)), name = "either land time of drone m is D time after land time of drone k")
+m.addConstrs(( land[k] + delay*x_k[m]*x_k[k] <= land[m] + M * (1 - y_2[k,m]) for k,m in combinations(K, 2)), name = "or land time of drone k is D time after land time of drone m")
 
 # 13 Max endurance
 m.addConstrs(( land[k] - launch[k] <= drone.E for k in K), name = "max endurance of drone")
+
+# 14 Capacity constriants
+m.addConstrs((gp.quicksum(q[j] * x[i,j,k] for i in C for j in C if i!=j) + (gp.quicksum(q[j] * x[i,j,k] for j in C) ) <= drone.q for k in K for i in P), name = "Capacity")
 
 
 m.update()
@@ -264,25 +267,33 @@ m.update()
 
 
 alpha     =   0   #How important are the customers?
-obj = LinExpr()
-
+obj1 = LinExpr()
 for key in x:
-    obj += (1-alpha)*x[key]*distances[key[0], key[1]] #part of objective function related to total distance
+    obj1 += (1-alpha)*x[key]*distances[key[0], key[1]] #part of objective function related to total distance
     if key[0] in P or key[0] in C:
         #part of objective function related to distance from pizzeria to customer and customer to customer
-        obj += alpha*x[key]*distances[key[0], key[1]]
+        obj1 += alpha*x[key]*distances[key[0], key[1]]
+
+m.setObjectiveN(obj1, 0, 2)
+
+obj3 = LinExpr()
 for k in K:
-    obj += M*(land[k]-launch[k]) # minimise time in air, dont stay in air if unnecessary
+    obj3 += (land[k]-launch[k]) # minimise time in air, dont stay in air if unnecessary
+
+m.setObjectiveN(obj3, 1, 1)
+
+obj4 = LinExpr()
 for i in P:
     for k in K:
-        obj += M*M*(tau[i,k]-e[i]) # minimise time delay vs expected arrival time at pizzeria
+        obj4 += (tau[i,k]-e[i]) # minimise time delay vs expected arrival time at pizzeria
 for j in C:
     for k in K:
-        obj += M*M*(tau[j,k]-c[j,0]) # minimise time delay vs expected arrival time at pizzeria
+        obj4 += (tau[j,k]-c[j,0]) # minimise time delay vs expected arrival time at pizzeria
 
+m.setObjectiveN(obj4, 2, 0)
 
+m.ModelSense = GRB.MINIMIZE
 
-m.setObjective(obj, GRB.MINIMIZE)
 m.update()
 
 
@@ -298,10 +309,22 @@ m.optimize()
 status = m.Status
 
 # ++++++++++++++++++++++++++++++ Printing & Visualisation ++++++++++++++++++++++++++++++++++++++++++
+totalDistance = 0
+for var in m.getVars():
+    if round(var.x) != 0 and var.varName[0] == "x" and var.varName[1] == "[":
+        name_of_variable = var.varName[2:-1].split(",")
+        totalDistance += distances[int(name_of_variable[0]), int(name_of_variable[1])]
+print("Total distance is: ", totalDistance)
+
+nObjectives = m.NumObj
+for i in range(nObjectives):
+    m.params.ObjNumber = i
+    print("Objective "+str(i)+" value: "+str(m.ObjNVal))
 
 for var in m.getVars():
     if var.x:
         print('%s %f' % (var.varName,var.x))
+
 
 
 def visualisation(print_tau):
@@ -309,40 +332,41 @@ def visualisation(print_tau):
     imData = plt.imread("map_first_try_basic_model.JPG") #first we are plotting the background image
 
     fig, ax = plt.subplots()
+    ax.set_title("Objective: " + str(round(m.objVal)))
     ax.imshow(imData, extent=[4.3458, 4.3954, 51.98554, 52.02264]) #setting the corners of our plot; these points work for well for the initial dataset
 
     colours=["r","b","c"] #the route of the first drone will be shown in red, of the second one in blue and of the third one in cyan
 
     for var in m.getVars():
-        if var.x and var.varName[0]=="x" and var.varName[1]=="[": #for plotting, we are interested in the x[i,j,k] variables
-
-            if var.varName[2]=="0": #scenario 1: we are at the airbase, going to the pizzerias
-                y_coord=[coord_airbase[0],coord_pizzerias[int(var.varName[4])-1][0]] #the y_coord is the lattitude (North)
-                x_coord=[coord_airbase[1],coord_pizzerias[int(var.varName[4])-1][1]] #the x_coord is the longitude (East)
-                ax.plot(x_coord, y_coord, colours[int(var.varName[6])], linewidth=2.5)
+        if round(var.x) != 0 and var.varName[0]=="x" and var.varName[1]=="[": #for plotting, we are interested in the x[i,j,k] variables
+            name_of_variable_1 = var.varName[2:-1].split(",")
+            if name_of_variable_1[0]=="0": #scenario 1: we are at the airbase, going to the pizzerias
+                y_coord=[coord_airbase[0],coord_pizzerias[int(name_of_variable_1[1])-1][0]] #the y_coord is the lattitude (North)
+                x_coord=[coord_airbase[1],coord_pizzerias[int(name_of_variable_1[1])-1][1]] #the x_coord is the longitude (East)
+                ax.plot(x_coord, y_coord, colours[int(name_of_variable_1[2])], linewidth=2.5)
 
                 # ---- plotting the drone icons ----
                 arr_drone = mpimg.imread("Drone_white_icon.png")
                 imagebox = OffsetImage(arr_drone, zoom=0.04)
                 ab = AnnotationBbox(imagebox, (mean(x_coord), mean(y_coord)), frameon=False)
                 ax.add_artist(ab)
-                ax.add_artist(mpl_text.Text(x=mean(x_coord), y=mean(y_coord), text=str(var.varName[6]), weight="bold", color='black', fontsize=9, verticalalignment='center',horizontalalignment='center'))
+                ax.add_artist(mpl_text.Text(x=mean(x_coord), y=mean(y_coord), text=str(name_of_variable_1[2]), weight="bold", color='black', fontsize=9, verticalalignment='center',horizontalalignment='center'))
 
 
-            if int(var.varName[2])>0 and int(var.varName[2])<=len(P): #scenario 2: we are at a pizzeria, going to a customer
-                y_coord=[coord_pizzerias[int(var.varName[2])-1][0], coord_clients[int(var.varName[4])-len(P)-1][0]]
-                x_coord=[coord_pizzerias[int(var.varName[2])-1][1], coord_clients[int(var.varName[4])-len(P)-1][1]]
-                ax.plot(x_coord, y_coord, colours[int(var.varName[6])], linewidth=2.5)
+            if int(name_of_variable_1[0])>0 and int(name_of_variable_1[0])<=len(P): #scenario 2: we are at a pizzeria, going to a customer
+                y_coord=[coord_pizzerias[int(name_of_variable_1[0])-1][0], coord_clients[int(name_of_variable_1[1])-len(P)-1][0]]
+                x_coord=[coord_pizzerias[int(name_of_variable_1[0])-1][1], coord_clients[int(name_of_variable_1[1])-len(P)-1][1]]
+                ax.plot(x_coord, y_coord, colours[int(name_of_variable_1[2])], linewidth=2.5)
 
-            if int(var.varName[2])>len(P) and int(var.varName[4])>len(P): #scenario 3: we are at a customer, going to another customer
-                y_coord = [coord_clients[int(var.varName[2])-len(P)-1][0], coord_clients[int(var.varName[4])-len(P)- 1][0]]
-                x_coord = [coord_clients[int(var.varName[2])-len(P)-1][1], coord_clients[int(var.varName[4])-len(P)- 1][1]]
-                ax.plot(x_coord, y_coord, colours[int(var.varName[6])], linewidth=2.5)
+            if int(name_of_variable_1[0])>len(P) and int(name_of_variable_1[1])>len(P): #scenario 3: we are at a customer, going to another customer
+                y_coord = [coord_clients[int(name_of_variable_1[0])-len(P)-1][0], coord_clients[int(name_of_variable_1[1])-len(P)- 1][0]]
+                x_coord = [coord_clients[int(name_of_variable_1[0])-len(P)-1][1], coord_clients[int(name_of_variable_1[1])-len(P)- 1][1]]
+                ax.plot(x_coord, y_coord, colours[int(name_of_variable_1[2])], linewidth=2.5)
 
-            if int(var.varName[2])>len(P) and int(var.varName[4])==0: #scenario 4: we are at a customer, going back to the airbase
-                y_coord = [coord_clients[int(var.varName[2]) - len(P) - 1][0],coord_airbase[0]]
-                x_coord = [coord_clients[int(var.varName[2]) - len(P) - 1][1],coord_airbase[1]]
-                ax.plot(x_coord, y_coord, colours[int(var.varName[6])], linewidth=2.5)
+            if int(name_of_variable_1[0])>len(P) and int(name_of_variable_1[1])==0: #scenario 4: we are at a customer, going back to the airbase
+                y_coord = [coord_clients[int(name_of_variable_1[0]) - len(P) - 1][0],coord_airbase[0]]
+                x_coord = [coord_clients[int(name_of_variable_1[0]) - len(P) - 1][1],coord_airbase[1]]
+                ax.plot(x_coord, y_coord, colours[int(name_of_variable_1[2])], linewidth=2.5)
 
 
     # -----plotting the info about the airbase------
@@ -359,7 +383,7 @@ def visualisation(print_tau):
                 bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
         if (print_tau == True):
             for j in K:
-                if tau[i+1,j].x:
+                if round(tau[i+1,j].x) != 0:
                     ax.text((coord_pizzerias[i,1]), (coord_pizzerias[i,0])-0.002, r'$\tau$' + "=" + str(round(tau[i+1,j].x,1)), color='white', fontsize=8, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
 
 
@@ -371,7 +395,7 @@ def visualisation(print_tau):
                 bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
         if (print_tau == True):
             for j in K:
-                if tau[i+1+len(P),j].x:
+                if round(tau[i+1+len(P),j].x) != 0:
                     ax.text((coord_clients[i,1]), (coord_clients[i,0])-0.002, r'$\tau$' + "=" + str(round(tau[i+1+len(P),j].x,1)), color='white', fontsize=8, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
 
     plt.xlabel("Longitutde (" + u"\N{DEGREE SIGN}" + "E)")
