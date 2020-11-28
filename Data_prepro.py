@@ -7,8 +7,6 @@ Created on Wed Nov 25 18:49:59 2020
 """
 
 import numpy as np
-import time
-import os
 from itertools import chain, combinations
 
 
@@ -20,16 +18,21 @@ from itertools import chain, combinations
 # 4.  customer - airbase    (directed)   <var_name>_CA
 
 
-def getData():
+def getData(complex):
+    if complex:
+        string = '_complex'
+    else:
+        string = ''
+
     # Load data:
-    data_CA   = np.genfromtxt("client_airbase_distances.csv",skip_header=1,delimiter=',',dtype=int)
-    data_AP   = np.genfromtxt("airbase_pizzerias_distances.csv",skip_header=1,delimiter=',',dtype=int)
-    data_CC   = np.genfromtxt("client_1_client_2_distances.csv",skip_header=1,delimiter=',',dtype=int)
-    data_PC   = np.genfromtxt("pizzerias_clients.csv",skip_header=1,delimiter=',',dtype=int)
+    data_CA   = np.genfromtxt("client_airbase_distances"+string+".csv",skip_header=1,delimiter=',',dtype=int)
+    data_AP   = np.genfromtxt("airbase_pizzerias_distances"+string+".csv",skip_header=1,delimiter=',',dtype=int)
+    data_CC   = np.genfromtxt("client_1_client_2_distances"+string+".csv",skip_header=1,delimiter=',',dtype=int)
+    data_PC   = np.genfromtxt("pizzerias_clients"+string+".csv",skip_header=1,delimiter=',',dtype=int)
 
     # Timing data:
-    e_tab     = np.genfromtxt("pizzeria_expected_arrival_time.csv",skip_header=1, delimiter=',', dtype=int)
-    c_tab     = np.genfromtxt("customer_arrival_time.csv", skip_header=1, delimiter=',', dtype=int)
+    e_tab     = np.genfromtxt("pizzeria_expected_arrival_time"+string+".csv",skip_header=1, delimiter=',', dtype=int)
+    c_tab     = np.genfromtxt("customer_arrival_time"+string+".csv", skip_header=1, delimiter=',', dtype=int)
 
     # Data format: node1 lat,long, node2 lat,long , distance
     dist_AP = data_AP[:,4]
@@ -38,8 +41,8 @@ def getData():
     dist_CA = data_CA[:,4]
 
     # Load data for visualisation purposes (extracting the coordinates):
-    data_CA_vis = np.genfromtxt("client_airbase_distances.csv", skip_header=1, delimiter=',')
-    data_AP_vis = np.genfromtxt("airbase_pizzerias_distances.csv", skip_header=1, delimiter=',')
+    data_CA_vis = np.genfromtxt("client_airbase_distances"+string+".csv", skip_header=1, delimiter=',')
+    data_AP_vis = np.genfromtxt("airbase_pizzerias_distances"+string+".csv", skip_header=1, delimiter=',')
 
     # saving the coordinates of the different destinations for visualisation purposes
     coord_airbase = data_AP_vis[0, 0:2]  # coordinates of the airbase
@@ -72,7 +75,7 @@ def getData():
         print(len(e),len(P))
         print("Error in the Pizzeria files!\n")
 
-    if c.shape[0] != len(C) + len(P) +1:
+    if c.shape[0] != len(C):
         print(c.shape[0],len(C))
         print("Error in the Customer files!\n")
 
