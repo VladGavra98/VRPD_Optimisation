@@ -21,6 +21,7 @@ from itertools import chain, combinations
 
 
 def getData():
+
     # Load data:
     data_CA   = np.genfromtxt("client_airbase_distances.csv",skip_header=1,delimiter=',',dtype=int)
     data_AP   = np.genfromtxt("airbase_pizzerias_distances.csv",skip_header=1,delimiter=',',dtype=int)

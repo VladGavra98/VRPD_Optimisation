@@ -33,7 +33,7 @@ import matplotlib.text as mpl_text
 from Data_prepro import getData
 
 # consts.
-M = 1000000
+M = 100000
 
 class UAV:
     """
