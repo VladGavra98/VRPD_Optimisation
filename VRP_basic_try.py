@@ -1,18 +1,13 @@
 # -*- coding: utf-8 -*-
 """
 Just trying around the (basic) set of constraints and some objective.
-
 Model architecture:
-
     K drones
     Time window/delay for drone launch / land
     Capacity
     Limited endurance
-
 Objective: minimise the total lateness and total distance
-
 @author:
-
 """
 import numpy as np
 import pandas as pd
@@ -436,6 +431,3 @@ def verify_cross_over(verify):
         print(distances)
 
 verify_cross_over(False)
-
-
-
