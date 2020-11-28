@@ -52,16 +52,21 @@ class UAV:
 # 4.  customer - airbase    (directed)   <var_name>_CA
 
 
-def getData():
+def getData(complex):
+    if complex:
+        string = '_complex'
+    else:
+        string = ''
+
     # Load data:
-    data_CA   = np.genfromtxt("client_airbase_distances_complex.csv",skip_header=1,delimiter=',',dtype=int)
-    data_AP   = np.genfromtxt("airbase_pizzerias_distances_complex.csv",skip_header=1,delimiter=',',dtype=int)
-    data_CC   = np.genfromtxt("client_1_client_2_distances_complex.csv",skip_header=1,delimiter=',',dtype=int)
-    data_PC   = np.genfromtxt("pizzerias_clients_complex.csv",skip_header=1,delimiter=',',dtype=int)
+    data_CA   = np.genfromtxt("client_airbase_distances"+string+".csv",skip_header=1,delimiter=',',dtype=int)
+    data_AP   = np.genfromtxt("airbase_pizzerias_distances"+string+".csv",skip_header=1,delimiter=',',dtype=int)
+    data_CC   = np.genfromtxt("client_1_client_2_distances"+string+".csv",skip_header=1,delimiter=',',dtype=int)
+    data_PC   = np.genfromtxt("pizzerias_clients"+string+".csv",skip_header=1,delimiter=',',dtype=int)
 
     # Timing data:
-    e_tab     = np.genfromtxt("pizzeria_expected_arrival_time_complex.csv",skip_header=1, delimiter=',', dtype=int)
-    c_tab     = np.genfromtxt("customer_arrival_time_complex.csv", skip_header=1, delimiter=',', dtype=int)
+    e_tab     = np.genfromtxt("pizzeria_expected_arrival_time"+string+".csv",skip_header=1, delimiter=',', dtype=int)
+    c_tab     = np.genfromtxt("customer_arrival_time"+string+".csv", skip_header=1, delimiter=',', dtype=int)
 
     # Data format: node1 lat,long, node2 lat,long , distance
     dist_AP = data_AP[:,4]
@@ -70,8 +75,8 @@ def getData():
     dist_CA = data_CA[:,4]
 
     # Load data for visualisation purposes (extracting the coordinates):
-    data_CA_vis = np.genfromtxt("client_airbase_distances_complex.csv", skip_header=1, delimiter=',')
-    data_AP_vis = np.genfromtxt("airbase_pizzerias_distances_complex.csv", skip_header=1, delimiter=',')
+    data_CA_vis = np.genfromtxt("client_airbase_distances"+string+".csv", skip_header=1, delimiter=',')
+    data_AP_vis = np.genfromtxt("airbase_pizzerias_distances"+string+".csv", skip_header=1, delimiter=',')
 
     # saving the coordinates of the different destinations for visualisation purposes
     coord_airbase = data_AP_vis[0, 0:2]  # coordinates of the airbase
@@ -134,14 +139,14 @@ def getData():
     return P,C,D,e,c,q,coord_airbase,coord_clients,coord_pizzerias,distances
 
 
-P,C,D,e,c,q,coord_airbase,coord_clients,coord_pizzerias,distances = getData()
+P,C,D,e,c,q,coord_airbase,coord_clients,coord_pizzerias,distances = getData(True)
 
 print(distances)
 
 
 # Buy some drones:
-K       = range(3)                 # number of drones
-drone   = UAV(10,10,180*60,1000)    # drone model
+K       = range(4)                 # number of drones
+drone   = UAV(10,8,30*60,1000)    # drone model
 delay       = 30                       # delay in seconds between drone launch / land
 
 print(c)
@@ -150,7 +155,8 @@ print(c)
 ### Create model
 m = gp.Model("VRP")
 
-
+m.setParam('MIPGap',0.05)
+m.setParam('Method', 1)
 #+++++++++++++++++++++++++++++++ Decision variables +++++++++++++++++++++++++++++++++++++++++++++++++
 
 # Edge assignment to drone:
@@ -159,6 +165,14 @@ x = {}
 for j in P:
     for k in K:
         x[0, j, k] = m.addVar(lb=0, ub=1, vtype=GRB.BINARY,name="x[%s,%s,%s]"%(0, j, k))
+# Add edges from pizzeria to pizzerias
+for i in P:
+    for j in P:
+        for k in K:
+            if i!=j:
+                x[i, j, k] = m.addVar(lb=0, ub=1, vtype=GRB.BINARY,name="x[%s,%s,%s]"%(i, j, k))
+
+
 # Add edges from pizzerias to customers
 for i in P:
     for j in C:
@@ -182,26 +196,26 @@ x_k = m.addVars(K, vtype = GRB.BINARY, name = "x_k")     #drone is active
 tau = {}
 for k in K:
     for i in P:
-        tau[i,k] = m.addVar(vtype = GRB.CONTINUOUS, name = 'tau[%s,%s]'%(i, k))
+        tau[i,k] = m.addVar(lb=0, ub = max(c[:, 1]), vtype = GRB.CONTINUOUS, name = 'tau[%s,%s]'%(i, k))
     for j in C:
-        tau[j,k] = m.addVar(vtype = GRB.CONTINUOUS, name = 'tau[%s,%s]'%(j, k))
+        tau[j,k] = m.addVar(lb=0, ub = max(c[:, 1]), vtype = GRB.CONTINUOUS, name = 'tau[%s,%s]'%(j, k))
 
 # Launch times for each drone
 launch = {}
 for k in K:
-    launch[k] = m.addVar(vtype = GRB.CONTINUOUS, name = 'launch[%s]'%(k))
+    launch[k] = m.addVar(lb=0, ub = max(c[:, 0]), vtype = GRB.CONTINUOUS, name = 'launch[%s]'%(k))
 
 # Land time for each drone
 land = {}
 for k in K:
-    land[k] = m.addVar(vtype = GRB.CONTINUOUS, name = 'land[%s]'%(k))
+    land[k] = m.addVar(lb=0, vtype = GRB.CONTINUOUS, name = 'land[%s]'%(k))
 
-# Help binary variable for either-or constraint of launch times (y) and landing times (q)
-y_1 = {}
-y_2 = {}
-for combi in combinations(K, 2):
-    y_1[combi] = m.addVar(vtype = GRB.BINARY, name = 'y_1[%s,%s]'%(combi[0], combi[1]))
-    y_2[combi] = m.addVar(vtype = GRB.BINARY, name = 'y_2[%s,%s]'%(combi[0], combi[1]))
+# # Help binary variable for either-or constraint of launch times (y) and landing times (q)
+# y_1 = {}
+# y_2 = {}
+# for combi in combinations(K, 2):
+#     y_1[combi] = m.addVar(vtype = GRB.BINARY, name = 'y_1[%s,%s]'%(combi[0], combi[1]))
+#     y_2[combi] = m.addVar(vtype = GRB.BINARY, name = 'y_2[%s,%s]'%(combi[0], combi[1]))
 
 m.update()
 
@@ -238,18 +252,18 @@ m.addConstrs((c[i,0] - tau[i,k] - (1 - x[j,i,k]) * M <= 0 for i in C for j in ch
 m.addConstrs((c[i,1] - tau[i,k] + (1- x[j,i,k]) * M >= 0 for i in C for j in chain(P, C) for k in K if i!=j), name = "upper bound on customer ")
 
 # 9 Launch time
-m.addConstrs((gp.quicksum((tau[i,k] - distances[0,i]/drone.v)*x[0,i,k] for i in P) >= launch[k] for k in K), name = "launch time")
+m.addConstrs((gp.quicksum((tau[i,k] - distances[0,i]/drone.v)*x[0,i,k] for i in P) == launch[k] for k in K), name = "launch time")
 
 # 10 Landing time
-m.addConstrs((gp.quicksum((tau[i,k] + distances[i,0]/drone.v)*x[i,0,k] for i in C) <= land[k] for k in K), name = "land time")
+m.addConstrs((gp.quicksum((tau[i,k] + distances[i,0]/drone.v)*x[i,0,k] for i in C) == land[k] for k in K), name = "land time")
 
-# 11 Either - or delay constraint for launch time
-m.addConstrs(( launch[k] + delay*x_k[m]*x_k[k] <= launch[m] + M * y_1[k,m] for k,m in combinations(K, 2)), name = "either launch time of drone m is D time after launch time of drone k")
-m.addConstrs(( launch[k] + delay*x_k[m]*x_k[k] <= launch[m] + M * (1 - y_1[k,m]) for k,m in combinations(K, 2)), name = "or launch time of drone k is D time after launch time of drone m")
-
-# 12 Either - or delay constraint for land time
-m.addConstrs(( land[k] + delay*x_k[m]*x_k[k] <= land[m] + M * y_2[k,m] for k,m in combinations(K, 2)), name = "either land time of drone m is D time after land time of drone k")
-m.addConstrs(( land[k] + delay*x_k[m]*x_k[k] <= land[m] + M * (1 - y_2[k,m]) for k,m in combinations(K, 2)), name = "or land time of drone k is D time after land time of drone m")
+# # 11 Either - or delay constraint for launch time
+# m.addConstrs(( launch[k] + delay*x_k[k]*x_k[m] <= launch[m] + M * y_1[k,m] for k,m in combinations(K, 2)), name = "either launch time of drone m is D time after launch time of drone k")
+# m.addConstrs(( launch[k] + delay*x_k[k]*x_k[m] <= launch[m] + M * (1 - y_1[k,m]) for k,m in combinations(K, 2)), name = "or launch time of drone k is D time after launch time of drone m")
+#
+# # 12 Either - or delay constraint for land time
+# m.addConstrs(( land[k] + delay*x_k[k]*x_k[m] <= land[m] + M * y_2[k,m] for k,m in combinations(K, 2)), name = "either land time of drone m is D time after land time of drone k")
+# m.addConstrs(( land[k] + delay*x_k[k]*x_k[m] <= land[m] + M * (1 - y_2[k,m]) for k,m in combinations(K, 2)), name = "or land time of drone k is D time after land time of drone m")
 
 # 13 Max endurance
 m.addConstrs(( land[k] - launch[k] <= drone.E for k in K), name = "max endurance of drone")
@@ -266,33 +280,31 @@ m.update()
 
 
 
-alpha     =   0   #How important are the customers?
+#
 obj1 = LinExpr()
 for key in x:
-    obj1 += (1-alpha)*x[key]*distances[key[0], key[1]] #part of objective function related to total distance
-    if key[0] in P or key[0] in C:
-        #part of objective function related to distance from pizzeria to customer and customer to customer
-        obj1 += alpha*x[key]*distances[key[0], key[1]]
+    obj1 += x[key]*distances[key[0], key[1]] #part of objective function related to total distance
 
-m.setObjectiveN(obj1, 0, 2)
+m.setObjectiveN(obj1, 0, 1)
 
-obj3 = LinExpr()
-for k in K:
-    obj3 += (land[k]-launch[k]) # minimise time in air, dont stay in air if unnecessary
-
-m.setObjectiveN(obj3, 1, 1)
+# obj3 = LinExpr()
+# for k in K:
+#     obj3 += (land[k]-launch[k]) # minimise time in air, dont stay in air if unnecessary
+#
+# m.setObjectiveN(obj3, 1, 1)
 
 obj4 = LinExpr()
 for i in P:
     for k in K:
-        obj4 += (tau[i,k]-e[i]) # minimise time delay vs expected arrival time at pizzeria
+        obj4 += (tau[i,k]) # minimise time delay vs expected arrival time at pizzeria
 for j in C:
     for k in K:
-        obj4 += (tau[j,k]-c[j,0]) # minimise time delay vs expected arrival time at pizzeria
+        obj4 += (tau[j,k]) # minimise time delay vs expected arrival time at pizzeria
 
 m.setObjectiveN(obj4, 2, 0)
 
 m.ModelSense = GRB.MINIMIZE
+
 
 m.update()
 
@@ -309,12 +321,12 @@ m.optimize()
 status = m.Status
 
 # ++++++++++++++++++++++++++++++ Printing & Visualisation ++++++++++++++++++++++++++++++++++++++++++
-totalDistance = 0
-for var in m.getVars():
-    if round(var.x) != 0 and var.varName[0] == "x" and var.varName[1] == "[":
-        name_of_variable = var.varName[2:-1].split(",")
-        totalDistance += distances[int(name_of_variable[0]), int(name_of_variable[1])]
-print("Total distance is: ", totalDistance)
+# totalDistance = 0
+# for var in m.getVars():
+#     if round(var.x) != 0 and var.varName[0] == "x" and var.varName[1] == "[":
+#         name_of_variable = var.varName[2:-1].split(",")
+#         totalDistance += distances[int(name_of_variable[0]), int(name_of_variable[1])]
+# print("Total distance is: ", totalDistance)
 
 nObjectives = m.NumObj
 for i in range(nObjectives):
@@ -335,7 +347,7 @@ def visualisation(print_tau):
     ax.set_title("Objective: " + str(round(m.objVal)))
     ax.imshow(imData, extent=[4.3458, 4.3954, 51.98554, 52.02264]) #setting the corners of our plot; these points work for well for the initial dataset
 
-    colours=["r","b","c"] #the route of the first drone will be shown in red, of the second one in blue and of the third one in cyan
+    colours= ["#540d6e","#ee4266","#ffd23f","#3bceac","#0ead69","#f94144","#f3722c","#f8961e","#f9844a","#f9c74f","#90be6d","#8ad0bb","#4d908e","#8da6b9","#277da1"] #the route of the first drone will be shown in red, of the second one in blue and of the third one in cyan
 
     for var in m.getVars():
         if round(var.x) != 0 and var.varName[0]=="x" and var.varName[1]=="[": #for plotting, we are interested in the x[i,j,k] variables
