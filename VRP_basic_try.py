@@ -1,18 +1,13 @@
 # -*- coding: utf-8 -*-
 """
 Just trying around the (basic) set of constraints and some objective.
-
 Model architecture:
-
     K drones
     Time window/delay for drone launch / land
     Capacity
     Limited endurance
-
 Objective: minimise the total lateness and total distance
-
 @author:
-
 """
 import numpy as np
 import pandas as pd
@@ -59,7 +54,6 @@ def getData(complex):
         string = ''
 
     # Load data:
-
     data_CA   = np.genfromtxt("client_airbase_distances"+string+".csv",skip_header=1,delimiter=',',dtype=int)
     data_AP   = np.genfromtxt("airbase_pizzerias_distances"+string+".csv",skip_header=1,delimiter=',',dtype=int)
     data_CC   = np.genfromtxt("client_1_client_2_distances"+string+".csv",skip_header=1,delimiter=',',dtype=int)
@@ -69,7 +63,6 @@ def getData(complex):
     e_tab     = np.genfromtxt("pizzeria_expected_arrival_time"+string+".csv",skip_header=1, delimiter=',', dtype=int)
     c_tab     = np.genfromtxt("customer_arrival_time"+string+".csv", skip_header=1, delimiter=',', dtype=int)
 
-
     # Data format: node1 lat,long, node2 lat,long , distance
     dist_AP = data_AP[:,4]
     dist_PC = data_PC[:,4]
@@ -77,10 +70,8 @@ def getData(complex):
     dist_CA = data_CA[:,4]
 
     # Load data for visualisation purposes (extracting the coordinates):
-
     data_CA_vis = np.genfromtxt("client_airbase_distances"+string+".csv", skip_header=1, delimiter=',')
     data_AP_vis = np.genfromtxt("airbase_pizzerias_distances"+string+".csv", skip_header=1, delimiter=',')
-
 
     # saving the coordinates of the different destinations for visualisation purposes
     coord_airbase = data_AP_vis[0, 0:2]  # coordinates of the airbase
@@ -149,12 +140,11 @@ print(distances)
 
 
 # Buy some drones:
+K       = range(4)                 # number of drones
+drone   = UAV(10,8,30*60,1000)    # drone model
+delay       = 30                       # delay in seconds between drone launch / land
 
-K       = range(3)                 # number of drones
-drone   = UAV(10,10,180*60,1000)    # drone model
-delay   = 30                       # delay in seconds between drone launch / land
-
-
+print(c)
 
 
 ### Create model
@@ -215,14 +205,12 @@ land = {}
 for k in K:
     land[k] = m.addVar(lb=0, vtype = GRB.CONTINUOUS, name = 'land[%s]'%(k))
 
-
 # # Help binary variable for either-or constraint of launch times (y) and landing times (q)
 # y_1 = {}
 # y_2 = {}
 # for combi in combinations(K, 2):
 #     y_1[combi] = m.addVar(vtype = GRB.BINARY, name = 'y_1[%s,%s]'%(combi[0], combi[1]))
 #     y_2[combi] = m.addVar(vtype = GRB.BINARY, name = 'y_2[%s,%s]'%(combi[0], combi[1]))
-
 
 m.update()
 
@@ -265,12 +253,12 @@ m.addConstrs((gp.quicksum((tau[i,k] - distances[0,i]/drone.v)*x[0,i,k] for i in 
 m.addConstrs((gp.quicksum((tau[i,k] + distances[i,0]/drone.v)*x[i,0,k] for i in C) == land[k] for k in K), name = "land time")
 
 # # 11 Either - or delay constraint for launch time
-# m.addConstrs(( launch[k] + delay*x_k[m]*x_k[k] <= launch[m] + M * y[k,m] for k,m in combinations(K, 2)), name = "either launch time of drone m is D time after launch time of drone k")
-# m.addConstrs(( launch[k] + delay*x_k[m]*x_k[k] <= launch[m] + M * (1 - y[k,m]) for k,m in combinations(K, 2)), name = "or launch time of drone k is D time after launch time of drone m")
-
+# m.addConstrs(( launch[k] + delay*x_k[k]*x_k[m] <= launch[m] + M * y_1[k,m] for k,m in combinations(K, 2)), name = "either launch time of drone m is D time after launch time of drone k")
+# m.addConstrs(( launch[k] + delay*x_k[k]*x_k[m] <= launch[m] + M * (1 - y_1[k,m]) for k,m in combinations(K, 2)), name = "or launch time of drone k is D time after launch time of drone m")
+#
 # # 12 Either - or delay constraint for land time
-# m.addConstrs(( land[k] + delay*x_k[m]*x_k[k] <= land[m] + M * z[k,m] for k,m in combinations(K, 2)), name = "either land time of drone m is D time after land time of drone k")
-# m.addConstrs(( land[k] + delay*x_k[m]*x_k[k] <= land[m] + M * (1 - z[k,m]) for k,m in combinations(K, 2)), name = "or land time of drone k is D time after land time of drone m")
+# m.addConstrs(( land[k] + delay*x_k[k]*x_k[m] <= land[m] + M * y_2[k,m] for k,m in combinations(K, 2)), name = "either land time of drone m is D time after land time of drone k")
+# m.addConstrs(( land[k] + delay*x_k[k]*x_k[m] <= land[m] + M * (1 - y_2[k,m]) for k,m in combinations(K, 2)), name = "or land time of drone k is D time after land time of drone m")
 
 # 13 Max endurance
 m.addConstrs(( land[k] - launch[k] <= drone.E for k in K), name = "max endurance of drone")
@@ -283,40 +271,32 @@ m.update()
 
 
 
-# +++++++++++++++++++++++++++++++  Objective +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# ++++++++++++++++++++++++++++    Objective +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 
-# alpha     =   1   #How important are the customers?
-# obj_distance = LinExpr()
-# for key in x:
-#     obj_distance += x[key]*distances[key[0], key[1]] #part of objective function related to total distance
-
-#     # reduntant part since we minimise customer lateness
-#     # if key[0] in P or key[0] in C:
-#     #     #part of objective function related to distance from pizzeria to customer and customer to customer
-#     #     obj1 += alpha*x[key]*distances[key[0], key[1]]
-
-# m.setObjectiveN(obj_distance, 0, 0)
-
-
+#
 obj1 = LinExpr()
 for key in x:
     obj1 += x[key]*distances[key[0], key[1]] #part of objective function related to total distance
 
 m.setObjectiveN(obj1, 0, 1)
 
+# obj3 = LinExpr()
+# for k in K:
+#     obj3 += (land[k]-launch[k]) # minimise time in air, dont stay in air if unnecessary
+#
+# m.setObjectiveN(obj3, 1, 1)
 
-obj_delay = LinExpr()
+obj4 = LinExpr()
 for i in P:
     for k in K:
-
-        obj_delay += (tau[i,k]-e[i]) # minimise time delay vs expected arrival time at pizzeria
+        obj4 += (tau[i,k]) # minimise time delay vs expected arrival time at pizzeria
 for j in C:
     for k in K:
-        obj_delay += (tau[j,k]-c[j,0]) # minimise time delay vs expected arrival time at customer
+        obj4 += (tau[j,k]) # minimise time delay vs expected arrival time at pizzeria
 
-m.setObjectiveN(obj_delay, 2, 2)
+m.setObjectiveN(obj4, 2, 0)
 
 m.ModelSense = GRB.MINIMIZE
 
@@ -327,7 +307,7 @@ m.update()
 #+++++++++++++++++++++++++++++++++++ Solve Model +++++++++++++++++++++++++++++++++++++++++++++++++++
 m.write("VRP_basic.lp")
 
-m.setParam('MIPGap',0.01)
+
 # m.computeIIS()
 
 m.optimize()
@@ -336,7 +316,6 @@ m.optimize()
 status = m.Status
 
 # ++++++++++++++++++++++++++++++ Printing & Visualisation ++++++++++++++++++++++++++++++++++++++++++
-
 # totalDistance = 0
 # for var in m.getVars():
 #     if round(var.x) != 0 and var.varName[0] == "x" and var.varName[1] == "[":
@@ -452,6 +431,3 @@ def verify_cross_over(verify):
         print(distances)
 
 verify_cross_over(False)
-
-
-
