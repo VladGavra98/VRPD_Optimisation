@@ -13,7 +13,7 @@ import csv
 
 # defining the location of the airbase, pizzerias, clients
 loc_airbase = np.array((52.020949, 4.393304))  # latitude longitude
-loc_pizzerias = np.array([(52.012892, 4.373290), (52.014430, 4.363525), (51.996050, 4.375586)])
+loc_pizzerias = np.array([(52.012892, 4.373290), (52.017830, 4.363525), (51.996050, 4.375586)])
 
 
 pizzeria_expected_arrival = np.array([600, 750, 800])
@@ -76,7 +76,7 @@ for pizzeria in loc_pizzerias:
                                   round(pizzeria[0], 5), round(pizzeria[1], 5),
                                   round(distance(loc_airbase, pizzeria).m, 5)]]
 
-myFile_airbase_pizzerias = open('airbase_pizzerias_distance.csv', 'w', newline="")
+myFile_airbase_pizzerias = open('airbase_pizzerias_distances.csv', 'w', newline="")
 with myFile_airbase_pizzerias:
     writer = csv.writer(myFile_airbase_pizzerias)
     writer.writerows(myData_airbase_pizzerias)
@@ -141,4 +141,4 @@ def plot():
     plt.show()
 
 #Uncomment the following line if you want to see where the nodes are located
-#plot()
+plot()
