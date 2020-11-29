@@ -50,15 +50,15 @@ class UAV:
 
 
 
-P,C,D,e,c,q,coord_airbase,coord_clients,coord_pizzerias,distances = getData(complex = True)
+P,C,D,e,c,q,coord_airbase,coord_clients,coord_pizzerias,distances = getData(complex = False)
 
 print(distances)
 
 
 # Buy some drones:
-K = range(4)                 # number of drones
+K = range(3)                 # number of drones
 droneSpeed = 10
-droneCapacity = 10
+droneCapacity = 8
 droneEnduranceMinutes = 30
 droneRange = 1000
 drone = UAV(droneSpeed,droneCapacity,droneEnduranceMinutes*60,droneRange)    # drone model
@@ -73,9 +73,10 @@ m = gp.Model("VRP")
 
 gapParameter = 0.05
 methodParameter = -1
-m.setParam('MIPGap',gapParameter)
+#m.setParam('MIPGap',gapParameter)
 m.setParam('Method', methodParameter)
 m.setParam("LogFile", 'logs/'+logName)
+
 #+++++++++++++++++++++++++++++++ Decision variables +++++++++++++++++++++++++++++++++++++++++++++++++
 
 # Edge assignment to drone:
@@ -170,25 +171,25 @@ m.addConstrs(((tau[i,k] + distances[i,j]/drone.v - (1 - x[i,j,k]) * M) <= tau[j,
 m.addConstrs((c[i,0] - tau[i,k] - (1 - x[j,i,k]) * M <= 0 for i in C for j in chain(P, C) for k in K if i!=j), name = "lower bound on customer ")
 m.addConstrs((c[i,1] - tau[i,k] + (1- x[j,i,k]) * M >= 0 for i in C for j in chain(P, C) for k in K if i!=j), name = "upper bound on customer ")
 
-# 9 Launch time
-m.addConstrs((gp.quicksum((tau[i,k] - distances[0,i]/drone.v)*x[0,i,k] for i in P) == launch[k] for k in K), name = "launch time")
-
-# 10 Landing time
-m.addConstrs((gp.quicksum((tau[i,k] + distances[i,0]/drone.v)*x[i,0,k] for i in C) == land[k] for k in K), name = "land time")
-
-# 11 Either - or delay constraint for launch time
-m.addConstrs(( launch[k] + delay*x_k[k]*x_k[m] <= launch[m] + M * y_1[k,m] for k,m in combinations(K, 2)), name = "either launch time of drone m is D time after launch time of drone k")
-m.addConstrs(( launch[m] + delay*x_k[k]*x_k[m] <= launch[k] + M * (1 - y_1[k,m]) for k,m in combinations(K, 2)), name = "or launch time of drone k is D time after launch time of drone m")
-
-# 12 Either - or delay constraint for land time
-m.addConstrs(( land[k] + delay*x_k[k]*x_k[m] <= land[m] + M * y_2[k,m] for k,m in combinations(K, 2)), name = "either land time of drone m is D time after land time of drone k")
-m.addConstrs(( land[m] + delay*x_k[k]*x_k[m] <= land[k] + M * (1 - y_2[k,m]) for k,m in combinations(K, 2)), name = "or land time of drone k is D time after land time of drone m")
-
-# 13 Max endurance
-m.addConstrs(( land[k] - launch[k] <= drone.E for k in K), name = "max endurance of drone")
-
-# 14 Capacity constriants
-m.addConstrs((gp.quicksum(q[j] * x[i,j,k] for i in C for j in C if i!=j) + (gp.quicksum(q[j] * x[i,j,k] for j in C) ) <= drone.q for k in K for i in P), name = "Capacity")
+# # 9 Launch time
+# m.addConstrs((gp.quicksum((tau[i,k] - distances[0,i]/drone.v)*x[0,i,k] for i in P) >= launch[k] for k in K), name = "launch time")
+#
+# # 10 Landing time
+# m.addConstrs((gp.quicksum((tau[i,k] + distances[i,0]/drone.v)*x[i,0,k] for i in C) <= land[k] for k in K), name = "land time")
+#
+# # 11 Either - or delay constraint for launch time
+# m.addConstrs(( launch[k] + delay*x_k[k]*x_k[m] <= launch[m] + M * y_1[k,m] for k,m in combinations(K, 2)), name = "either launch time of drone m is D time after launch time of drone k")
+# m.addConstrs(( launch[m] + delay*x_k[k]*x_k[m] <= launch[k] + M * (1 - y_1[k,m]) for k,m in combinations(K, 2)), name = "or launch time of drone k is D time after launch time of drone m")
+#
+# # 12 Either - or delay constraint for land time
+# m.addConstrs(( land[k] + delay*x_k[k]*x_k[m] <= land[m] + M * y_2[k,m] for k,m in combinations(K, 2)), name = "either land time of drone m is D time after land time of drone k")
+# m.addConstrs(( land[m] + delay*x_k[k]*x_k[m] <= land[k] + M * (1 - y_2[k,m]) for k,m in combinations(K, 2)), name = "or land time of drone k is D time after land time of drone m")
+#
+# # 13 Max endurance
+# m.addConstrs(( land[k] - launch[k] <= drone.E for k in K), name = "max endurance of drone")
+#
+# # 14 Capacity constriants
+# m.addConstrs((gp.quicksum(q[j] * x[i,j,k] for i in C for j in C if i!=j) + (gp.quicksum(q[j] * x[i,j,k] for j in C for i in P) ) <= drone.q for k in K), name = "Capacity")
 
 
 m.update()
@@ -266,19 +267,21 @@ for var in m.getVars():
     if var.x:
         file_object.write('%s %f \n' % (var.varName,var.x))
 
+# print(m.getAttr('Slack',m.getConstrs()))
 # sensitivity doesnt work
 # file_object.write('\n')
 # file_object.write('Sensitivity analysis\n\n')
 #
 # file_object.write('Name\tFinal Value\tReduced Cost\tAllowable Coeff Increase\tAllowable Coeff Decrease\tLower Bound\tUpper Bound')
 # for var in m.getVars():
-#     file_object.write('\t'.join([var.VarName, var.x, var.RC, var.SAObjUp, var.SAObjLow, var.LB, var.UB]))
+#     print(model.getAttr("Pi", model.getConstrs()))
+#     # file_object.write('\t'.join([var.VarName, str(var.x), str(var.LB), str(var.UB)]))
 #
 # file_object.write('\n')
 #
 # file_object.write('Name\tShadow Price\tRHS\tSlack\tLower Range\tUpper Range')
 # for constr in m.getConstrs():
-#     file_object.write('\t'.join([constr.ConstrName, constr.Pi, constr.RHS, constr.Slack, constr.SARHSLow, constr.SARHSUp]))
+#     file_object.write('\t'.join([constr.ConstrName, constr.pi, constr.RHS, constr.Slack, constr.SARHSLow, constr.SARHSUp]))
 
 
 
