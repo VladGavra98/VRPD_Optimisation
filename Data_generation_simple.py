@@ -58,7 +58,6 @@ with myFile_client_airbase_distances:
 myData_pizzeria_expected_arrival_time = [['latitude_pizzeria', 'longitude_pizzeria', 'expected_arrival_time(in sec)']]
 i = 0
 for pizzeria in loc_pizzerias:
-    print(pizzeria)
     myData_pizzeria_expected_arrival_time += [
         [round(pizzeria[0], 5), round(pizzeria[1], 5), round(pizzeria_expected_arrival[i], 0)]]
     i += 1
