@@ -171,25 +171,25 @@ m.addConstrs(((tau[i,k] + distances[i,j]/drone.v - (1 - x[i,j,k]) * M) <= tau[j,
 m.addConstrs((c[i,0] - tau[i,k] - (1 - x[j,i,k]) * M <= 0 for i in C for j in chain(P, C) for k in K if i!=j), name = "lower bound on customer ")
 m.addConstrs((c[i,1] - tau[i,k] + (1- x[j,i,k]) * M >= 0 for i in C for j in chain(P, C) for k in K if i!=j), name = "upper bound on customer ")
 
-# # 9 Launch time
-# m.addConstrs((gp.quicksum((tau[i,k] - distances[0,i]/drone.v)*x[0,i,k] for i in P) >= launch[k] for k in K), name = "launch time")
-#
-# # 10 Landing time
-# m.addConstrs((gp.quicksum((tau[i,k] + distances[i,0]/drone.v)*x[i,0,k] for i in C) <= land[k] for k in K), name = "land time")
-#
-# # 11 Either - or delay constraint for launch time
-# m.addConstrs(( launch[k] + delay*x_k[k]*x_k[m] <= launch[m] + M * y_1[k,m] for k,m in combinations(K, 2)), name = "either launch time of drone m is D time after launch time of drone k")
-# m.addConstrs(( launch[m] + delay*x_k[k]*x_k[m] <= launch[k] + M * (1 - y_1[k,m]) for k,m in combinations(K, 2)), name = "or launch time of drone k is D time after launch time of drone m")
-#
-# # 12 Either - or delay constraint for land time
-# m.addConstrs(( land[k] + delay*x_k[k]*x_k[m] <= land[m] + M * y_2[k,m] for k,m in combinations(K, 2)), name = "either land time of drone m is D time after land time of drone k")
-# m.addConstrs(( land[m] + delay*x_k[k]*x_k[m] <= land[k] + M * (1 - y_2[k,m]) for k,m in combinations(K, 2)), name = "or land time of drone k is D time after land time of drone m")
-#
-# # 13 Max endurance
-# m.addConstrs(( land[k] - launch[k] <= drone.E for k in K), name = "max endurance of drone")
-#
-# # 14 Capacity constriants
-# m.addConstrs((gp.quicksum(q[j] * x[i,j,k] for i in C for j in C if i!=j) + (gp.quicksum(q[j] * x[i,j,k] for j in C for i in P) ) <= drone.q for k in K), name = "Capacity")
+# 9 Launch time
+m.addConstrs((gp.quicksum((tau[i,k] - distances[0,i]/drone.v)*x[0,i,k] for i in P) >= launch[k] for k in K), name = "launch time")
+
+# 10 Landing time
+m.addConstrs((gp.quicksum((tau[i,k] + distances[i,0]/drone.v)*x[i,0,k] for i in C) <= land[k] for k in K), name = "land time")
+
+# 11 Either - or delay constraint for launch time
+m.addConstrs(( launch[k] + delay*x_k[k]*x_k[m] <= launch[m] + M * y_1[k,m] for k,m in combinations(K, 2)), name = "either launch time of drone m is D time after launch time of drone k")
+m.addConstrs(( launch[m] + delay*x_k[k]*x_k[m] <= launch[k] + M * (1 - y_1[k,m]) for k,m in combinations(K, 2)), name = "or launch time of drone k is D time after launch time of drone m")
+
+# 12 Either - or delay constraint for land time
+m.addConstrs(( land[k] + delay*x_k[k]*x_k[m] <= land[m] + M * y_2[k,m] for k,m in combinations(K, 2)), name = "either land time of drone m is D time after land time of drone k")
+m.addConstrs(( land[m] + delay*x_k[k]*x_k[m] <= land[k] + M * (1 - y_2[k,m]) for k,m in combinations(K, 2)), name = "or land time of drone k is D time after land time of drone m")
+
+# 13 Max endurance
+m.addConstrs(( land[k] - launch[k] <= drone.E for k in K), name = "max endurance of drone")
+
+# 14 Capacity constriants
+m.addConstrs((gp.quicksum(q[j] * x[i,j,k] for i in C for j in C if i!=j) + (gp.quicksum(q[j] * x[i,j,k] for j in C for i in P) ) <= drone.q for k in K), name = "Capacity")
 
 
 m.update()
