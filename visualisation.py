@@ -37,12 +37,13 @@ def visualisation(print_tau):
 
     imData = plt.imread("map_first_try_basic_model.JPG") #first we are plotting the background image
 
-    fig, ax = plt.subplots()
-    ax.set_title("Objective: " + str(round(m.objVal)))
+    fig, ax = plt.subplots(1,1,figsize=(10,7.5)) #w, h
+
+    ax.set_title("Objective (total distance): " + str(round(m.objVal)) + " m")
     ax.imshow(imData, extent=[4.3458, 4.3954, 51.98554, 52.02264]) #setting the corners of our plot; these points work for well for the initial dataset
 
-    colours= ["#540d6e","#ee4266","#ffd23f","#3bceac","#0ead69","#f94144","#f3722c","#f8961e","#f9844a","#f9c74f","#90be6d","#8ad0bb","#4d908e","#8da6b9","#277da1"] #the route of the first drone will be shown in red, of the second one in blue and of the third one in cyan
-
+    #colours= ["#540d6e","#ee4266","#ffd23f","#3bceac","#0ead69","#f94144","#f3722c","#f8961e","#f9844a","#f9c74f","#90be6d","#8ad0bb","#4d908e","#8da6b9","#277da1"] #the route of the first drone will be shown in red, of the second one in blue and of the third one in cyan
+    colours = ["b", "yellow", "r", "magenta", "darkorange", "springgreen", "plum", "aqua", "lightpink", "k"]
     for var in m.getVars():
         if round(var.x) != 0 and var.varName[0]=="x" and var.varName[1]=="[": #for plotting, we are interested in the x[i,j,k] variables
             name_of_variable_1 = var.varName[2:-1].split(",")
@@ -85,28 +86,28 @@ def visualisation(print_tau):
     ax.plot((coord_pizzerias[:, 1]), (coord_pizzerias[:, 0]), 'w^', markersize=7) #pizzerias white triangles
 
     for i in range(len(coord_pizzerias)):
-        ax.text((coord_pizzerias[i,1]), (coord_pizzerias[i,0]) - 0.001, str(i+1), color='white', fontsize=10,
-                bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
-        if (print_tau == True):
-            for j in K:
+        for j in K:
                 if round(tau[i+1,j].x) != 0:
-                    ax.text((coord_pizzerias[i,1]), (coord_pizzerias[i,0])-0.002, r'$\tau$' + "=" + str(round(tau[i+1,j].x,1)), color='white', fontsize=8, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
+                    ax.text((coord_pizzerias[i,1]), (coord_pizzerias[i,0])-0.001, str(i + 1) + ", " + r'$\tau$' + "=" + str(int(tau[i+1,j].x)), color='white', fontsize=8, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 1})
 
 
     # -----plotting the info about the clients------
     ax.plot((coord_clients[:,1]), (coord_clients[:,0]), 'wo') #clients as white dots
 
     for i in range(len(coord_clients)):
-        ax.text((coord_clients[i,1]), (coord_clients[i,0]) - 0.001, str(i+1+len(P)), color='white', fontsize=10,
-                bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
         if (print_tau == True):
             for j in K:
                 if round(tau[i+1+len(P),j].x) != 0:
-                    ax.text((coord_clients[i,1]), (coord_clients[i,0])-0.002, r'$\tau$' + "=" + str(round(tau[i+1+len(P),j].x,1)), color='white', fontsize=8, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
-
+                    ax.text((coord_clients[i,1]), (coord_clients[i,0])-0.001, str(i+1+len(P)) + ", " + r'$\tau$' + "=" + str(int(tau[i+1+len(P),j].x)), color='white', fontsize=8, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 1})
+        else:
+            ax.text((coord_clients[i, 1]), (coord_clients[i, 0]) - 0.001, str(i + 1 + len(P)), color='white',
+                    fontsize=10,
+                    bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
     plt.xlabel("Longitutde (" + u"\N{DEGREE SIGN}" + "E)")
     plt.ylabel("Latitude (" + u"\N{DEGREE SIGN}" + "N)")
+    plt.tight_layout()
     plt.show()
+
 
 
 #Comment/uncomment the following line in order to hide/see the visualisation of the current solution
