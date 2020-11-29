@@ -10,10 +10,11 @@ from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from statistics import mean
 import matplotlib.image as mpimg
 import matplotlib.text as mpl_text
+import matplotlib.lines as mlines
 
 from VRP_Model import *
 
-largeFont = True
+
 # ++++++++++++++++++++++++++++++ Printing & Visualisation ++++++++++++++++++++++++++++++++++++++++++
 # totalDistance = 0
 # for var in m.getVars():
@@ -33,11 +34,18 @@ for var in m.getVars():
 
 
 
-def visualisation(print_tau):
+def visualisation(print_tau, visualisation_type):
 
     imData = plt.imread("map_first_try_basic_model.JPG") #first we are plotting the background image
 
-    fig, ax = plt.subplots(1,1,figsize=(10,7.5)) #w, h
+    if visualisation_type=="small":
+        fig, ax = plt.subplots(1,1,figsize=(7.5,5.9)) #w, h
+        largeFont = True
+        margin = 0.0015
+
+    else:
+        fig, ax = plt.subplots(1, 1, figsize=(10, 7.5))  # w, h
+        margin = 0.001
 
     ax.set_title("Objective (total distance): " + str(round(m.objVal)) + " m", fontsize = 14)
     ax.imshow(imData, extent=[4.3458, 4.3954, 51.98554, 52.02264]) #setting the corners of our plot; these points work for well for the initial dataset
@@ -79,17 +87,21 @@ def visualisation(print_tau):
     # -----plotting the info about the airbase------
     ax.plot((coord_airbase[1]), (coord_airbase[0]), 'w*', markersize=12) #airbase as white star
 
-    ax.text((coord_airbase[1]), (coord_airbase[0])-0.001, 'Airbase', color='white', fontsize = 12 if largeFont else 10, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
+    #ax.text((coord_airbase[1]), (coord_airbase[0])- margin, 'Airbase', color='white', fontsize = 12 if largeFont else 10, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
 
 
     # -----plotting the info about the pizzerias------
-    ax.plot((coord_pizzerias[:, 1]), (coord_pizzerias[:, 0]), 'w^', markersize=7) #pizzerias white triangles
+    ax.plot((coord_pizzerias[:, 1]), (coord_pizzerias[:, 0]), 'w^', markersize=11) #pizzerias white triangles
 
     for i in range(len(coord_pizzerias)):
-        for j in K:
-                if round(tau[i+1,j].x) != 0:
-                    ax.text((coord_pizzerias[i,1]), (coord_pizzerias[i,0])-0.001, str(i + 1) +  ", " + r'$\tau$' + "=" + str(int(tau[i+1,j].x)), color='white',  fontsize = 12 if largeFont else 8, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 1})
-
+        if (print_tau == True):
+            for j in K:
+                    if round(tau[i+1,j].x) != 0:
+                        ax.text((coord_pizzerias[i,1]), (coord_pizzerias[i,0])-margin, str(i + 1) +  ", " + r'$\tau$' + "=" + str(int(tau[i+1,j].x)), color='white',  fontsize = 12 if largeFont else 10, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 1})
+        else:
+            ax.text((coord_pizzerias[i, 1]), (coord_pizzerias[i, 0]) - margin,
+                    str(i + 1) + ", " + r'$\tau$' + "=" + str(i + 1), color='white',
+                    fontsize=12 if largeFont else 10, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 1})
 
 
     # -----plotting the info about the clients------
@@ -99,10 +111,10 @@ def visualisation(print_tau):
         if (print_tau == True):
             for j in K:
                 if round(tau[i+1+len(P),j].x) != 0:
-                    ax.text((coord_clients[i,1]), (coord_clients[i,0])-0.001, str(i+1+len(P)) + ", " + r'$\tau$' + "=" + str(int(tau[i+1+len(P),j].x)), color='white', fontsize = 12 if largeFont else 8, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 1})
+                    ax.text((coord_clients[i,1]), (coord_clients[i,0])- margin, str(i+1+len(P)) + ", " + r'$\tau$' + "=" + str(int(tau[i+1+len(P),j].x)), color='white', fontsize = 12 if largeFont else 10, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 1})
 
         else:
-            ax.text((coord_clients[i, 1]), (coord_clients[i, 0]) - 0.001, str(i + 1 + len(P)), color='white',
+            ax.text((coord_clients[i, 1]), (coord_clients[i, 0]) - margin, str(i + 1 + len(P)), color='white',
                     fontsize=10,
                     bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
 
@@ -112,13 +124,27 @@ def visualisation(print_tau):
     plt.xlabel("Longitude (" + u"\N{DEGREE SIGN}" + "E)", fontsize = 14)
     plt.ylabel("Latitude (" + u"\N{DEGREE SIGN}" + "N)", fontsize = 14)
 
+
+    pizzeria_marker = mlines.Line2D([], [], color="white", marker='^', markersize=11, linestyle='None', label='Pizzeria')
+    airbase_marker =  mlines.Line2D([], [], color="white", marker='*', markersize=12, linestyle='None', label='Airbase')
+    customer_marker = mlines.Line2D([], [], color="white", marker='o', linestyle='None', label='Customer')
+
+
+    leg= plt.legend(frameon=1, facecolor='black', framealpha=0.5, loc='lower right', handles=[airbase_marker, pizzeria_marker, customer_marker])
+    for text in leg.get_texts():
+        plt.setp(text, color='w')
+
     plt.tight_layout()
     plt.show()
 
 
 
 #Comment/uncomment the following line in order to hide/see the visualisation of the current solution
-visualisation(True)    #write True if you want to also plot the taus. Write False if you don't want the taus to be plotted
+visualisation(print_tau=True, visualisation_type="small")
+
+#write True if you want to also plot the taus. Write False if you don't want the taus to be plotted
+#if you want the small visualisation(suitable for simple model/verification purposes write "small"
+#write "big" for visualising complex model
 
 
 # ++++++++++++++++++++++++++++++ Verifying cross-over ++++++++++++++++++++++++++++++++++++++++++
