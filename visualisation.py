@@ -106,6 +106,7 @@ def visualisation(print_tau):
                     fontsize=10,
                     bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
 
+
     ax.tick_params(axis='both', which='major', labelsize=12)
     ax.tick_params(axis='both', which='minor', labelsize=12)
     plt.xlabel("Longitude (" + u"\N{DEGREE SIGN}" + "E)", fontsize = 14)
