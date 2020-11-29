@@ -13,7 +13,7 @@ import matplotlib.text as mpl_text
 
 from VRP_Model import *
 
-
+largeFont = True
 # ++++++++++++++++++++++++++++++ Printing & Visualisation ++++++++++++++++++++++++++++++++++++++++++
 # totalDistance = 0
 # for var in m.getVars():
@@ -39,7 +39,7 @@ def visualisation(print_tau):
 
     fig, ax = plt.subplots(1,1,figsize=(10,7.5)) #w, h
 
-    ax.set_title("Objective (total distance): " + str(round(m.objVal)) + " m")
+    ax.set_title("Objective (total distance): " + str(round(m.objVal)) + " m", fontsize = 14)
     ax.imshow(imData, extent=[4.3458, 4.3954, 51.98554, 52.02264]) #setting the corners of our plot; these points work for well for the initial dataset
 
     #colours= ["#540d6e","#ee4266","#ffd23f","#3bceac","#0ead69","#f94144","#f3722c","#f8961e","#f9844a","#f9c74f","#90be6d","#8ad0bb","#4d908e","#8da6b9","#277da1"] #the route of the first drone will be shown in red, of the second one in blue and of the third one in cyan
@@ -79,7 +79,7 @@ def visualisation(print_tau):
     # -----plotting the info about the airbase------
     ax.plot((coord_airbase[1]), (coord_airbase[0]), 'w*', markersize=12) #airbase as white star
 
-    ax.text((coord_airbase[1]), (coord_airbase[0])-0.001, 'Airbase', color='white', fontsize=10, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
+    ax.text((coord_airbase[1]), (coord_airbase[0])-0.001, 'Airbase', color='white', fontsize = 12 if largeFont else 10, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
 
 
     # -----plotting the info about the pizzerias------
@@ -88,7 +88,8 @@ def visualisation(print_tau):
     for i in range(len(coord_pizzerias)):
         for j in K:
                 if round(tau[i+1,j].x) != 0:
-                    ax.text((coord_pizzerias[i,1]), (coord_pizzerias[i,0])-0.001, str(i + 1) + ", " + r'$\tau$' + "=" + str(int(tau[i+1,j].x)), color='white', fontsize=8, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 1})
+                    ax.text((coord_pizzerias[i,1]), (coord_pizzerias[i,0])-0.001, str(i + 1) +  ", " + r'$\tau$' + "=" + str(int(tau[i+1,j].x)), color='white',  fontsize = 12 if largeFont else 8, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 1})
+
 
 
     # -----plotting the info about the clients------
@@ -98,13 +99,19 @@ def visualisation(print_tau):
         if (print_tau == True):
             for j in K:
                 if round(tau[i+1+len(P),j].x) != 0:
-                    ax.text((coord_clients[i,1]), (coord_clients[i,0])-0.001, str(i+1+len(P)) + ", " + r'$\tau$' + "=" + str(int(tau[i+1+len(P),j].x)), color='white', fontsize=8, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 1})
+                    ax.text((coord_clients[i,1]), (coord_clients[i,0])-0.001, str(i+1+len(P)) + ", " + r'$\tau$' + "=" + str(int(tau[i+1+len(P),j].x)), color='white', fontsize = 12 if largeFont else 8, bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 1})
+
         else:
             ax.text((coord_clients[i, 1]), (coord_clients[i, 0]) - 0.001, str(i + 1 + len(P)), color='white',
                     fontsize=10,
                     bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
-    plt.xlabel("Longitude (" + u"\N{DEGREE SIGN}" + "E)")
-    plt.ylabel("Latitude (" + u"\N{DEGREE SIGN}" + "N)")
+
+
+    ax.tick_params(axis='both', which='major', labelsize=12)
+    ax.tick_params(axis='both', which='minor', labelsize=12)
+    plt.xlabel("Longitude (" + u"\N{DEGREE SIGN}" + "E)", fontsize = 14)
+    plt.ylabel("Latitude (" + u"\N{DEGREE SIGN}" + "N)", fontsize = 14)
+
     plt.tight_layout()
     plt.show()
 
