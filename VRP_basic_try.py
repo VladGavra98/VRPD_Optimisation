@@ -161,11 +161,11 @@ for j in P:
     for k in K:
         x[0, j, k] = m.addVar(lb=0, ub=1, vtype=GRB.BINARY,name="x[%s,%s,%s]"%(0, j, k))
 # Add edges from pizzeria to pizzerias
-for i in P:
-    for j in P:
-        for k in K:
-            if i!=j:
-                x[i, j, k] = m.addVar(lb=0, ub=1, vtype=GRB.BINARY,name="x[%s,%s,%s]"%(i, j, k))
+# for i in P:
+#     for j in P:
+#         for k in K:
+#             if i!=j:
+#                 x[i, j, k] = m.addVar(lb=0, ub=1, vtype=GRB.BINARY,name="x[%s,%s,%s]"%(i, j, k))
 
 
 # Add edges from pizzerias to customers
@@ -205,12 +205,12 @@ land = {}
 for k in K:
     land[k] = m.addVar(lb=0, vtype = GRB.CONTINUOUS, name = 'land[%s]'%(k))
 
-# # Help binary variable for either-or constraint of launch times (y) and landing times (q)
-# y_1 = {}
-# y_2 = {}
-# for combi in combinations(K, 2):
-#     y_1[combi] = m.addVar(vtype = GRB.BINARY, name = 'y_1[%s,%s]'%(combi[0], combi[1]))
-#     y_2[combi] = m.addVar(vtype = GRB.BINARY, name = 'y_2[%s,%s]'%(combi[0], combi[1]))
+# Help binary variable for either-or constraint of launch times (y) and landing times (q)
+y_1 = {}
+y_2 = {}
+for combi in combinations(K, 2):
+    y_1[combi] = m.addVar(vtype = GRB.BINARY, name = 'y_1[%s,%s]'%(combi[0], combi[1]))
+    y_2[combi] = m.addVar(vtype = GRB.BINARY, name = 'y_2[%s,%s]'%(combi[0], combi[1]))
 
 m.update()
 
@@ -247,18 +247,18 @@ m.addConstrs((c[i,0] - tau[i,k] - (1 - x[j,i,k]) * M <= 0 for i in C for j in ch
 m.addConstrs((c[i,1] - tau[i,k] + (1- x[j,i,k]) * M >= 0 for i in C for j in chain(P, C) for k in K if i!=j), name = "upper bound on customer ")
 
 # 9 Launch time
-m.addConstrs((gp.quicksum((tau[i,k] - distances[0,i]/drone.v)*x[0,i,k] for i in P) == launch[k] for k in K), name = "launch time")
+m.addConstrs((gp.quicksum((tau[i,k] - distances[0,i]/drone.v)*x[0,i,k] for i in P) >= launch[k] for k in K), name = "launch time")
 
 # 10 Landing time
-m.addConstrs((gp.quicksum((tau[i,k] + distances[i,0]/drone.v)*x[i,0,k] for i in C) == land[k] for k in K), name = "land time")
+m.addConstrs((gp.quicksum((tau[i,k] + distances[i,0]/drone.v)*x[i,0,k] for i in C) <= land[k] for k in K), name = "land time")
 
-# # 11 Either - or delay constraint for launch time
-# m.addConstrs(( launch[k] + delay*x_k[k]*x_k[m] <= launch[m] + M * y_1[k,m] for k,m in combinations(K, 2)), name = "either launch time of drone m is D time after launch time of drone k")
-# m.addConstrs(( launch[k] + delay*x_k[k]*x_k[m] <= launch[m] + M * (1 - y_1[k,m]) for k,m in combinations(K, 2)), name = "or launch time of drone k is D time after launch time of drone m")
-#
-# # 12 Either - or delay constraint for land time
-# m.addConstrs(( land[k] + delay*x_k[k]*x_k[m] <= land[m] + M * y_2[k,m] for k,m in combinations(K, 2)), name = "either land time of drone m is D time after land time of drone k")
-# m.addConstrs(( land[k] + delay*x_k[k]*x_k[m] <= land[m] + M * (1 - y_2[k,m]) for k,m in combinations(K, 2)), name = "or land time of drone k is D time after land time of drone m")
+# 11 Either - or delay constraint for launch time
+m.addConstrs(( launch[k] + delay*x_k[k]*x_k[m] <= launch[m] + M * y_1[k,m] for k,m in combinations(K, 2)), name = "delay launch time 1")
+m.addConstrs(( launch[m] + delay*x_k[k]*x_k[m] <= launch[k] + M * (1 - y_1[k,m]) for k,m in combinations(K, 2)), name = "delay launch time 2")
+
+# 12 Either - or delay constraint for land time
+m.addConstrs(( land[k] + delay*x_k[k]*x_k[m] <= land[m] + M * y_2[k,m] for k,m in combinations(K, 2)), name = "delay land time 1")
+m.addConstrs(( land[m] + delay*x_k[k]*x_k[m] <= land[k] + M * (1 - y_2[k,m]) for k,m in combinations(K, 2)), name = "delay land time 2")
 
 # 13 Max endurance
 m.addConstrs(( land[k] - launch[k] <= drone.E for k in K), name = "max endurance of drone")
@@ -280,13 +280,14 @@ obj1 = LinExpr()
 for key in x:
     obj1 += x[key]*distances[key[0], key[1]] #part of objective function related to total distance
 
-m.setObjectiveN(obj1, 0, 1)
+m.setObjectiveN(obj1, 0, 2)
 
-# obj3 = LinExpr()
-# for k in K:
-#     obj3 += (land[k]-launch[k]) # minimise time in air, dont stay in air if unnecessary
-#
-# m.setObjectiveN(obj3, 1, 1)
+
+obj3 = LinExpr()
+for k in K:
+    obj3 += (land[k]-launch[k]) # minimise time in air, dont stay in air if unnecessary
+
+m.setObjectiveN(obj3, 1, 1)
 
 obj4 = LinExpr()
 for i in P:
@@ -431,3 +432,4 @@ def verify_cross_over(verify):
         print(distances)
 
 verify_cross_over(False)
+
