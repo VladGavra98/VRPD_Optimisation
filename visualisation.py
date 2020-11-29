@@ -103,7 +103,7 @@ def visualisation(print_tau):
             ax.text((coord_clients[i, 1]), (coord_clients[i, 0]) - 0.001, str(i + 1 + len(P)), color='white',
                     fontsize=10,
                     bbox={'facecolor': 'red', 'alpha': 0.6, 'pad': 2})
-    plt.xlabel("Longitutde (" + u"\N{DEGREE SIGN}" + "E)")
+    plt.xlabel("Longitude (" + u"\N{DEGREE SIGN}" + "E)")
     plt.ylabel("Latitude (" + u"\N{DEGREE SIGN}" + "N)")
     plt.tight_layout()
     plt.show()
