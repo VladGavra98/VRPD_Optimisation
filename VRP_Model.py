@@ -70,7 +70,7 @@ print("Log created as " + str(logName))
 m = gp.Model("VRP")
 
 gapParameter = 0.05
-methodParameter = 1
+methodParameter = -1
 
 if complex:
     m.setParam('MIPGap',gapParameter)
