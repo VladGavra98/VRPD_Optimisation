@@ -17,18 +17,11 @@ Objective: minimise the total lateness and total distance
 """
 
 import numpy as np
-import pandas as pd
 from gurobipy import Model,GRB,LinExpr
 from copy import deepcopy
 import gurobipy as gp
-import time
-import os
 from itertools import chain, combinations
-import matplotlib.pyplot as plt
-from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from statistics import mean
-import matplotlib.image as mpimg
-import matplotlib.text as mpl_text
 from datetime import datetime, date
 
 from Data_prepro import getData
@@ -49,14 +42,15 @@ class UAV:
         self.E = endurance  #[s]
 
 
+complex = True
 
-P,C,D,e,c,q,coord_airbase,coord_clients,coord_pizzerias,distances = getData(complex = False)
+P,C,D,e,c,q,coord_airbase,coord_clients,coord_pizzerias,distances = getData(complex)
 
 print(distances)
 
 
 # Buy some drones:
-K = range(3)                 # number of drones
+K          = range(4)                 # number of drones
 droneSpeed = 10
 droneCapacity = 8
 droneEnduranceMinutes = 30
@@ -64,16 +58,23 @@ droneRange = 1000
 drone = UAV(droneSpeed,droneCapacity,droneEnduranceMinutes*60,droneRange)    # drone model
 delay = 30                       # delay in seconds between drone launch / land
 
+
+#+++++++++++++++++++++++++++++++++++ Set-up logger +++++++++++++++++++++++++++++++++++++++++++++++
 now = datetime.now()
 timeString = now.strftime("%d-%m-%Y_%H-%M-%S")
 
 logName = 'D'+str(droneSpeed)+'-'+str(droneCapacity)+'-'+str(droneEnduranceMinutes)+'_d'+str(delay)+'_P'+str(len(P))+'_C'+str(len(C))+'_'+timeString+'.txt'
-### Create model
+print("Log created as " + str(logName))
+
+#++++++++++++++++++++++++++++++++ Create model+++++++++++++++++++++++++++++++++++++++++++++++++++++
 m = gp.Model("VRP")
 
 gapParameter = 0.05
-methodParameter = -1
-#m.setParam('MIPGap',gapParameter)
+methodParameter = 1
+
+if complex:
+    m.setParam('MIPGap',gapParameter)
+
 m.setParam('Method', methodParameter)
 m.setParam("LogFile", 'logs/'+logName)
 
@@ -198,21 +199,21 @@ m.update()
 
 # ++++++++++++++++++++++++++++    Objective +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-
-
-#
+# Distance
 obj1 = LinExpr()
 for key in x:
     obj1 += x[key]*distances[key[0], key[1]] #part of objective function related to total distance
 
 m.setObjectiveN(obj1, 0, 2)
 
+#Total time in air
 obj3 = LinExpr()
 for k in K:
     obj3 += (land[k]-launch[k]) # minimise time in air, dont stay in air if unnecessary
 
 m.setObjectiveN(obj3, 1, 1)
 
+# Delay at locations
 obj4 = LinExpr()
 for i in P:
     for k in K:
@@ -222,6 +223,9 @@ for j in C:
         obj4 += (tau[j,k]) # minimise time delay vs expected arrival time at pizzeria
 
 m.setObjectiveN(obj4, 2, 0)
+
+
+
 
 m.ModelSense = GRB.MINIMIZE
 
