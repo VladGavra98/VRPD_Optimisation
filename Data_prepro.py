@@ -18,7 +18,8 @@ from itertools import chain, combinations
 # 4.  customer - airbase    (directed)   <var_name>_CA
 
 
-def getData(complex):
+def getData(complex=False,debugging=False):
+
     if complex:
         string = '_complex'
     else:
@@ -75,7 +76,7 @@ def getData(complex):
         print(len(e),len(P))
         print("Error in the Pizzeria files!\n")
 
-    if c.shape[0] != len(C):
+    if c.shape[0] != len(C) - len(P) -1:
         print(c.shape[0],len(C))
         print("Error in the Customer files!\n")
 
@@ -101,5 +102,8 @@ def getData(complex):
     for i in C:
         distances[0,i] = dist_CA[i-Pmax-1]
     distances[:,0] = distances[0,:] # from i to 0
+
+    if debugging:
+        print(distances)
 
     return P,C,D,e,c,q,coord_airbase,coord_clients,coord_pizzerias,distances
