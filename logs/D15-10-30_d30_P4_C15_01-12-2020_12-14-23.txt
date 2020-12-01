@@ -1,0 +1,67 @@
+
+Gurobi 9.0.3 (win64) logging started Tue Dec  1 12:14:23 2020
+
+Changed value of parameter LogFile to logs/D15-10-30_d30_P4_C15_01-12-2020_12-14-23.txt
+   Prev:   Default: 
+Gurobi Optimizer version 9.0.3 build v9.0.3rc0 (win64)
+Optimize a model with 3383 rows, 1256 columns and 12128 nonzeros
+Model fingerprint: 0x507164fd
+Model has 32 quadratic constraints
+Variable types: 84 continuous, 1172 integer (1172 binary)
+Coefficient statistics:
+  Matrix range     [1e+00, 1e+05]
+  QMatrix range    [1e+00, 3e+01]
+  QLMatrix range   [1e+00, 1e+05]
+  Objective range  [1e+00, 5e+03]
+  Bounds range     [1e+00, 2e+03]
+  RHS range        [1e+00, 1e+05]
+  QRHS range       [1e+05, 1e+05]
+
+---------------------------------------------------------------------------
+Multi-objectives: starting optimization with 3 objectives ... 
+---------------------------------------------------------------------------
+
+Multi-objectives: applying initial presolve ...
+---------------------------------------------------------------------------
+
+Presolve removed 88 rows and 0 columns
+Presolve time: 0.02s
+Presolved: 3425 rows and 1338 columns
+---------------------------------------------------------------------------
+
+Multi-objectives: optimize objective 1 () ...
+---------------------------------------------------------------------------
+
+Presolve time: 0.03s
+Presolved: 3425 rows, 1338 columns, 24941 nonzeros
+Variable types: 160 continuous, 1178 integer (1178 binary)
+
+Root relaxation: objective 2.691100e+04, 674 iterations, 0.03 seconds
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+     0     0 26911.0000    0   14          - 26911.0000      -     -    0s
+     0     0 26911.0000    0   19          - 26911.0000      -     -    0s
+H    0     0                    37391.000000 26911.0000  28.0%     -    0s
+     0     0 26911.0000    0   19 37391.0000 26911.0000  28.0%     -    0s
+H    0     0                    36047.000000 26911.0000  25.3%     -    0s
+     0     0 27133.0000    0   29 36047.0000 27133.0000  24.7%     -    0s
+     0     0 27133.0000    0   31 36047.0000 27133.0000  24.7%     -    0s
+     0     0 27133.0000    0   31 36047.0000 27133.0000  24.7%     -    0s
+     0     0 27133.0000    0   28 36047.0000 27133.0000  24.7%     -    0s
+     0     0 27133.0000    0   28 36047.0000 27133.0000  24.7%     -    0s
+     0     0 27133.0000    0   28 36047.0000 27133.0000  24.7%     -    0s
+     0     0 27133.0000    0   28 36047.0000 27133.0000  24.7%     -    0s
+     0     2 27133.0000    0   28 36047.0000 27133.0000  24.7%     -    0s
+H   37    39                    33681.000000 27133.0000  19.4%  34.0    1s
+H   66    68                    33565.000000 27133.0000  19.2%  25.8    1s
+H  100    95                    32445.000000 27133.0000  16.4%  24.4    1s
+H  102    95                    32005.000000 27133.0000  15.2%  24.2    1s
+H  135   117                    31899.000000 27133.0000  14.9%  22.8    1s
+H  397   331                    31438.000000 27160.0000  13.6%  18.2    2s
+*  475   360              18    31200.000000 27160.0000  12.9%  17.1    2s
+H  512   377                    30796.000000 27160.0000  11.8%  16.7    3s
+  1033   730 27380.0000   17   28 30796.0000 27203.8750  11.7%  15.3    5s
+H 1045   700                    30384.000000 27214.0000  10.4%  15.1    6s
+H 1046   666                    29978.000000 27214.0000  9.22%  15.1    7s

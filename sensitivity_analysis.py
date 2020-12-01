@@ -31,33 +31,34 @@ plt.rc('figure', titlesize=texpsize[2])  # fontsize of the figure title
 matplotlib.rcParams['lines.linewidth'] = 1.5
 matplotlib.rcParams['figure.facecolor'] = 'white'
 matplotlib.rcParams['axes.facecolor'] = 'white'
-matplotlib.rcParams["legend.fancybox"] = False
+matplotlib.rcParams["legend.fancybox"] = True
 
 
 
-
-
+# +++++++++++++++++++++++++++++++++++++++ Capacity sensitivity +++++++++++++++++++++++++++++++++++
     # CHANGE HERE WITH YOUR OWN DATA!
 q_lst = [8,10,12,14,16]
-Z1_lst = [31384,31384,31384,31384,31384]
-Z2_lst = [3138.4,3138.4,3138.4,3138.4,3138.4]
-Z3_lst = [17443.5,17443.5,17443.5,17443.5,17443.5]
+
+Z1_lst = [31384,29670,28673, 28570,28320]
+Z2_lst = [3138.4,3008.2 ,2846.89,2811.6,2811.53]
+Z3_lst = [17443.5,17702.56 ,18069.8,18750.4,18092.7]
 
 #Z1
 plt.figure("Z1_q")
 
 x  = np.array(q_lst)
 y  = np.array(Z1_lst)/1000      #to get km
-ax1 = plt.subplot(111)
+ax1 = plt.subplot(131)
 
 
-plt.plot(x,y,"#2A9D8F",marker='s', label=str(r"$Z_3$"))
+plt.plot(x,y,"#2A9D8F",marker='s', label=str(r"$Z_1$"))
+plt.plot(x,y*0 + y[1],"r--", label=str(r"$Z_1$ default"))
 plt.xlabel(r'$q$ [pizzas]')
 plt.ylabel(r'$Z_1$ [km]')
 plt.title(r'Minimised Total Distance')
 
 ax1.set_xlim(min(x), max(x))
-ax1.set_ylim(0.9*min(y), 1.1*max(y))
+ax1.set_ylim(0.98*min(y), 1.02*max(y))
 plt.axvline(0,color=(0,0,0),linewidth=0.8) #comment out for no axes line
 plt.axhline(0,color=(0,0,0),linewidth=0.8) #comment out for no axes line
 plt.minorticks_on() # set minor ticks
@@ -71,19 +72,20 @@ plt.show()
 
 
 # Z2
-plt.figure("Z2_q")
+
+# plt.figure("Z2_q")
+
 y  = np.array(Z2_lst)/60     #to get km
-ax2 = plt.subplot(111)
+ax2 = plt.subplot(132)
 
-
-
-plt.plot(x,y,"#227C9D",marker='s', label=str(r"$Z_3$"))
+plt.plot(x,y,"#227C9D",marker='s', label=str(r"$Z_2$"))
+plt.plot(x,y*0 + y[1],"r--", label=str(r"$Z_2$ default"))
 plt.xlabel(r'$q$ [pizzas]')
 plt.ylabel(r'$Z_2$ [min]')
 plt.title(r'Minimised Total Airtime')
 
 ax2.set_xlim(min(x), max(x))
-ax2.set_ylim(0.9*min(y), 1.1*max(y))
+ax2.set_ylim(0.98*min(y), 1.02*max(y))
 
 plt.axvline(0,color=(0,0,0),linewidth=0.8) #comment out for no axes line
 plt.axhline(0,color=(0,0,0),linewidth=0.8) #comment out for no axes line
@@ -98,17 +100,18 @@ plt.show()
 
 
 #Z3
-plt.figure("Z3_q")
+# plt.figure("Z3_q")
 y  = np.array(Z3_lst)/60     #to get km
-ax3 = plt.subplot(111)
+ax3 = plt.subplot(133)
 
 plt.plot(x,y,"#E76F51",marker='s', label=str(r"$Z_3$"))
+plt.plot(x,y*0 + y[1],"r--", label=str(r"$Z_3$ default"))
 plt.xlabel(r'$q$ [pizzas]')
 plt.ylabel(r'$Z_3$ [min]')
 plt.title(r'Minimised Total Lateness')
 
 ax3.set_xlim(min(x), max(x))
-ax3.set_ylim(0.9*min(y), 1.1*max(y))
+ax3.set_ylim(0.98*min(y), 1.02*max(y))
 
 plt.axvline(0,color=(0,0,0),linewidth=0.8) #comment out for no axes line
 plt.axhline(0,color=(0,0,0),linewidth=0.8) #comment out for no axes line
@@ -122,3 +125,93 @@ plt.legend()
 plt.tight_layout()
 plt.show()
 
+
+# #++++++++++++++++++++ Speed sensitivity +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#     # CHANGE HERE WITH YOUR OWN DATA!
+# v_lst = [8,10,12,14,16]
+
+# Z1_lst = [31384,29670,28673, 28570,28320]
+# Z2_lst = [3138.4,3008.2 ,2846.89,2811.59,2811.53]
+# Z3_lst = [17443.5,17702.56 ,18069.8,18750.4,18092.7]
+
+# #Z1
+# plt.figure("Z_v")
+
+# x  = np.array(q_lst)
+# y  = np.array(Z1_lst)/1000      #to get km
+# ax1 = plt.subplot(111)
+
+
+# plt.plot(x,y,"#2A9D8F",marker='s', label=str(r"$Z_1$"))
+# plt.plot(x,y*0 + y[1],"r--", label=str(r"$Z_1$ default"))
+# plt.xlabel(r'$V$ [m/s]')
+# plt.ylabel(r'$Z_1$ [km]')
+# plt.title(r'Minimised Total Distance')
+
+# ax1.set_xlim(min(x), max(x))
+# ax1.set_ylim(0.9*min(y), 1.1*max(y))
+# plt.axvline(0,color=(0,0,0),linewidth=0.8) #comment out for no axes line
+# plt.axhline(0,color=(0,0,0),linewidth=0.8) #comment out for no axes line
+# plt.minorticks_on() # set minor ticks
+# plt.grid(which='major', linestyle='-', linewidth='0.3', color='black') # customise major grid
+# plt.grid(which='minor', linestyle=':', linewidth='0.3', color='grey') # customise minor grid
+# plt.legend()
+
+
+# plt.tight_layout()
+# plt.show()
+
+
+# # Z2
+# plt.figure("Z2_q")
+# y  = np.array(Z2_lst)/60     #to get km
+# ax2 = plt.subplot(111)
+
+
+
+# plt.plot(x,y,"#227C9D",marker='s', label=str(r"$Z_2$"))
+# plt.plot(x,y*0 + y[1],"r--", label=str(r"$Z_2$ default"))
+# plt.xlabel(r'$V$ [m/s]')
+# plt.ylabel(r'$Z_2$ [min]')
+# plt.title(r'Minimised Total Airtime')
+
+# ax2.set_xlim(min(x), max(x))
+# ax2.set_ylim(0.9*min(y), 1.1*max(y))
+
+# plt.axvline(0,color=(0,0,0),linewidth=0.8) #comment out for no axes line
+# plt.axhline(0,color=(0,0,0),linewidth=0.8) #comment out for no axes line
+# plt.minorticks_on() # set minor ticks
+# plt.grid(which='major', linestyle='-', linewidth='0.3', color='black') # customise major grid
+# plt.grid(which='minor', linestyle=':', linewidth='0.3', color='grey') # customise minor grid
+# plt.legend()
+
+# plt.tight_layout()
+# plt.show()
+
+
+
+# #Z3
+# plt.figure("Z3_q")
+# y  = np.array(Z3_lst)/60     #to get km
+# ax3 = plt.subplot(111)
+
+# plt.plot(x,y,"#E76F51",marker='s', label=str(r"$Z_3$"))
+# plt.plot(x,y*0 + y[1],"r--", label=str(r"$Z_3$ default"))
+# plt.xlabel(r'$V$ [m/s]')
+# plt.ylabel(r'$Z_3$ [min]')
+# plt.title(r'Minimised Total Lateness')
+
+# ax3.set_xlim(min(x), max(x)*1.05)
+# ax3.set_ylim(0.9*min(y), 1.1*max(y))
+
+# plt.axvline(0,color=(0,0,0),linewidth=0.8) #comment out for no axes line
+# plt.axhline(0,color=(0,0,0),linewidth=0.8) #comment out for no axes line
+# plt.minorticks_on() # set minor ticks
+# plt.grid(which='major', linestyle='-', linewidth='0.3', color='black') # customise major grid
+# plt.grid(which='minor', linestyle=':', linewidth='0.3', color='grey') # customise minor grid
+# plt.legend()
+
+
+
+# plt.tight_layout()
+# plt.show()

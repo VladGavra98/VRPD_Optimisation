@@ -51,8 +51,8 @@ print(distances)
 
 # Buy some drones:
 K          = range(4)                 # number of drones
-droneSpeed = 10
-droneCapacity = 8
+droneSpeed = 15
+droneCapacity = 10
 droneEnduranceMinutes = 30
 droneRange = 1000
 drone = UAV(droneSpeed,droneCapacity,droneEnduranceMinutes*60,droneRange)    # drone model
@@ -289,5 +289,5 @@ for var in m.getVars():
 
 
 
-
+print("Wrote file: " + str(logName))
 file_object.close()
