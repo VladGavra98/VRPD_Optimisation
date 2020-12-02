@@ -36,7 +36,7 @@ for client_1 in loc_clients:
                 [round(client_1[0], 5), round(client_1[1], 5), round(client_2[0], 5), round(client_2[1], 5),
                  round(distance(client_1, client_2).m, 4)]]
 
-myFile_client_1_client_2_distances = open('client_1_client_2_distances_complex.csv', 'w', newline="")
+myFile_client_1_client_2_distances = open('client_1_client_2_distances.csv', 'w', newline="")
 with myFile_client_1_client_2_distances:
     writer = csv.writer(myFile_client_1_client_2_distances)
     writer.writerows(myData_client_1_client_2_distances)
