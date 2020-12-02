@@ -76,7 +76,7 @@ def getData(complex=False,debugging=False):
         print(len(e),len(P))
         print("Error in the Pizzeria files!\n")
 
-    if c.shape[0] != len(C) - len(P) -1:
+    if c.shape[0] != len(C):
         print(c.shape[0],len(C))
         print("Error in the Customer files!\n")
 
