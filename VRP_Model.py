@@ -46,17 +46,15 @@ complex = True
 
 P,C,D,e,c,q,coord_airbase,coord_clients,coord_pizzerias,distances = getData(complex)
 
-print(distances)
-
 
 # Buy some drones:
-K          = range(4)                 # number of drones
-droneSpeed = 15
-droneCapacity = 10
+K                     = range(4)                 # number of drones
+droneSpeed            = 10
+droneCapacity         = 14
 droneEnduranceMinutes = 30
-droneRange = 1000
-drone = UAV(droneSpeed,droneCapacity,droneEnduranceMinutes*60,droneRange)    # drone model
-delay = 30                       # delay in seconds between drone launch / land
+droneRange            = 1000
+drone                 = UAV(droneSpeed,droneCapacity,droneEnduranceMinutes*60,droneRange)    # drone model
+delay                 = 30                       # delay in seconds between drone launch / land
 
 
 #+++++++++++++++++++++++++++++++++++ Set-up logger +++++++++++++++++++++++++++++++++++++++++++++++
@@ -206,12 +204,12 @@ for key in x:
 
 m.setObjectiveN(obj1, 0, 2)
 
-#Total time in air
-obj3 = LinExpr()
-for k in K:
-    obj3 += (land[k]-launch[k]) # minimise time in air, dont stay in air if unnecessary
+# #Total time in air
+# obj3 = LinExpr()
+# for k in K:
+#     obj3 += (land[k]-launch[k]) # minimise time in air, dont stay in air if unnecessary
 
-m.setObjectiveN(obj3, 1, 1)
+# m.setObjectiveN(obj3, 1, 1)
 
 # Delay at locations
 obj4 = LinExpr()
