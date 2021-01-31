@@ -1,5 +1,5 @@
-# VRP_Optimisation
-The repository is built for the Operations Optimisation course and it deals with the Vehicle Routing Problem assignment.
+# Veheicle Routing Problem Optimisation for Drone Delivery
+The repository is built for the Operations Optimisation course and it deals with the assignment on Vehicle Routing using Mixed Integer Linear programming.
 
 ## Files
 - VRP_Model.py contains the entire model, this should be run if you want to generate a solution
